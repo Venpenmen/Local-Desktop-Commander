@@ -51,10 +51,17 @@ test('OAuth metadata, exact redirect, consent, PKCE, audience, expiry and revoca
     assert.deepEqual(metadata.code_challenge_methods_supported, ['S256']);
     assert.equal((await register({ redirect_uris: [redirect + '/../../other'] })).status, 400);
     assert.equal((await register({ redirect_uris: ['https://example.org/return'] })).status, 400);
-    const registered = await register({ redirect_uris: [redirect], token_endpoint_auth_method: 'client_secret_post' });
+    assert.equal((await request('/.well-known/oauth-protected-resource')).status, 200);
+    assert.equal((await register({ redirect_uris: [redirect], token_endpoint_auth_method: 'client_secret_post' })).status, 201);
+    const registered = await register({ redirect_uris: [redirect] });
     assert.equal(registered.status, 201);
     const identity = await registered.json();
+    assert.equal(identity.token_endpoint_auth_method, 'client_secret_basic');
     const credentials = { client_id: identity.client_id, client_secret: identity.client_secret };
+    const basic = { Authorization: 'Basic ' + Buffer.from(credentials.client_id + ':' + credentials.client_secret).toString('base64') };
+    const basicForm = (route, fields, authentication = basic) => request(route, {
+      method: 'POST', headers: authentication, body: new URLSearchParams(fields),
+    });
 
     const verifier = randomBytes(32).toString('base64url');
     const challenge = createHash('sha256').update(verifier).digest('base64url');
@@ -84,7 +91,9 @@ test('OAuth metadata, exact redirect, consent, PKCE, audience, expiry and revoca
       { redirect_uri: redirect + '-different' }, { resource: issuer.origin + '/wrong' }]) {
       assert.equal((await form('/token', { ...tokenGrant, ...invalid })).status, 400);
     }
-    const issued = await form('/token', tokenGrant);
+    const { client_id: _id, client_secret: _secret, ...basicGrant } = tokenGrant;
+    assert.equal((await basicForm('/token', tokenGrant)).status, 401);
+    const issued = await basicForm('/token', basicGrant);
     assert.equal(issued.status, 200);
     const { access_token: token } = await issued.json();
     assert(token);
@@ -98,7 +107,7 @@ test('OAuth metadata, exact redirect, consent, PKCE, audience, expiry and revoca
       const logs = await readFile(new URL('events.ndjson', dir), 'utf8');
       assert(logs.trim().split('\n').map(JSON.parse).some(item => item.kind === 'result' && item.authorized &&
         item.source === 'self-test' && item.callId === result.structuredContent.callId));
-      assert.equal((await form('/revoke', { ...credentials, token })).status, 200);
+      assert.equal((await basicForm('/revoke', { token })).status, 200);
     } else {
       assert.equal((await request('/mcp', { headers: auth })).status, 204);
       await delay(2100);

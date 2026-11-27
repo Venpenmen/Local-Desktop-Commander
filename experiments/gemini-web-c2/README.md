@@ -11,3 +11,5 @@
 使用 Start -OAuth -Seconds 7200 创建隔离的临时 HTTPS 实验。填写 MCP URL 并使用动态注册。Google 回调经登记规则校验，授权及令牌交换使用注册的精确回调。用户只在授权页输入当前实验 runtime 子目录内 approval-key.txt 的批准码；此文件保持本地。SDK 负责 OAuth 路由和 S256 PKCE 校验。令牌绑定资源 URL 与 probe 权限，十分钟有效，可撤销。注册、待批准请求、授权码和令牌均保存在当前进程内存，停止即失效。临时域名随实例变化。
 
 运行 node --test oauth.test.mjs 验证本地安全边界。公网测试设置 LDC_C2_OAUTH_URL 和 LDC_C2_RUN 后执行同一脚本。HTTPS 诊断需要现有代理时，仅在测试进程设置 LDC_C2_TEST_PROXY。OAuth 探针阶段仅允许无副作用的随机回执工具。
+
+若平台要求手动注册，在运行中的 OAuth 实验使用 Run.ps1 AddClient -Id <实验ID> -RedirectUri <Gemini 显示的精确地址>。凭据生成在本机受保护的 manual-client.json。切换实验地址后需重新核对 Gemini 显示的回调。诊断日志记录 OAuth 路由、HTTP 状态及注册认证方式，不保存原始查询、请求体或密钥。

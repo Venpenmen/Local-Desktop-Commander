@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { createHash, randomUUID, randomBytes } from 'node:crypto';
-import { mkdirSync, appendFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, appendFileSync, writeFileSync, readFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -126,7 +126,10 @@ server.listen(0, '127.0.0.1', () => {
       if (kind === 'oauth') {
         const approvalKey = randomBytes(24).toString('base64url');
         writeFileSync(join(runtime, 'approval-key.txt'), approvalKey, { flag: 'wx' });
-        oauth = createProbeOAuth({ issuer: new URL(match[0]), approvalKey, serveMcp, log });
+        oauth = createProbeOAuth({ issuer: new URL(match[0]), approvalKey, serveMcp, log, getManualClient: () => {
+          try { return JSON.parse(readFileSync(join(runtime, 'manual-client.json'), 'utf8').replace(/^\uFEFF/, '')); }
+          catch { return undefined; }
+        } });
       }
       state.publicUrl = match[0] + '/mcp';
       save();
