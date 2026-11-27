@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "id": "openai",
+  "name": "OpenAI Secure MCP Tunnel",
+  "version": "0.0.21",
+  "type": "transport",
+  "core": "mcp-stdio",
+  "management": 1,
+  "entry": "management/LDC-OpenAI.ps1",
+  "dependencies": [],
+  "permissions": ["outbound-https", "child-process"],
+  "capabilities": ["loopback-health", "mcp-discovery"],
+  "configuration": {"proxy": {"type": "loopback-http-or-null"}},
+  "health": ["healthz", "readyz", "mcp-discovery"],
+  "lifecycle": ["start", "stop", "diagnose"]
+}

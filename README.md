@@ -12,3 +12,7 @@ Build with scripts/install.ps1, scripts/build.ps1 and scripts/deploy.ps1. See [i
 [ChatGPT / 管理](docs/management.md) · [Migration / 迁移](docs/migration.md)
 ZIP: first run scripts/install-runtime.ps1 to install locked production dependencies. / ZIP 解压后先运行 scripts/install-runtime.ps1 安装锁定的生产依赖。
 
+
+## Local management API
+
+See [management API v1](docs/management-api.md) for the JSON CLI, and [transport contracts](docs/transport-extensions.md) for adapter development.

@@ -33,7 +33,7 @@ try {
  Copy-Item "$src/engine/upstream/package*.json","$src/engine/upstream/LICENSE" "$d/engine/upstream/"
  Copy-Item "$src/engine/upstream/dist" "$d/engine/upstream/" -Recurse
  Copy-Item "$tmp/tunnel" "$d/transports/openai/bin" -Recurse
- Copy-Item "$src/transports/openai/profile.example.yaml" "$d/transports/openai/"
+ Copy-Item "$src/transports/openai/profile.example.yaml","$src/transports/openai/manifest.json" "$d/transports/openai/"
  Copy-Item "$tmp/package/bin/rg.exe" "$d/engine/ripgrep/bin/"
  Copy-Item "$tmp/package/LICENSE" "$d/engine/ripgrep/"
  Copy-Item "$src/scripts/configure.ps1","$src/scripts/verify.ps1","$src/scripts/preflight.ps1" "$d/scripts/"
