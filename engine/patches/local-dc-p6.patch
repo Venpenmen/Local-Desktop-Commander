@@ -1,0 +1,1416 @@
+diff --git a/package-lock.json b/package-lock.json
+index bb49e09..7ebbad9 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -25,13 +25,12 @@
+         "cross-fetch": "^4.1.0",
+         "exceljs": "^4.4.0",
+         "fastest-levenshtein": "^1.0.16",
+-        "glob": "^10.3.10",
+         "highlight.js": "^11.11.1",
+         "isbinaryfile": "^5.0.4",
+-        "markdown-it": "^14.1.0",
++        "markdown-it": "14.3.3",
+         "md-to-pdf": "^5.2.5",
+         "mqtt": "5.16.0",
+-        "node-forge": "1.4.0",
++        "node-forge": "1.4.4",
+         "open": "^10.2.0",
+         "pdf-lib": "^1.17.1",
+         "pizzip": "^3.2.0",
+@@ -44,8 +43,7 @@
+         "unbash": "6.0.1",
+         "unified": "^11.0.5",
+         "unpdf": "~1.8.1",
+-        "zod": "^3.24.1",
+-        "zod-to-json-schema": "^3.23.5"
++        "zod": "4.6.7"
+       },
+       "bin": {
+         "desktop-commander": "dist/index.js",
+@@ -100,6 +98,16 @@
+         "mcpb": "dist/cli/cli.js"
+       }
+     },
++    "node_modules/@anthropic-ai/mcpb/node_modules/zod": {
++      "version": "3.25.76",
++      "resolved": "https://registry.npmjs.org/zod/-/zod-3.25.76.tgz",
++      "integrity": "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==",
++      "dev": true,
++      "license": "MIT",
++      "funding": {
++        "url": "https://github.com/sponsors/colinhacks"
++      }
++    },
+     "node_modules/@asamuzakjp/css-color": {
+       "version": "3.2.0",
+       "resolved": "https://registry.npmjs.org/@asamuzakjp/css-color/-/css-color-3.2.0.tgz",
+@@ -783,15 +791,15 @@
+       "license": "MIT"
+     },
+     "node_modules/@hono/node-server": {
+-      "version": "2.1.3",
+-      "resolved": "https://registry.npmjs.org/@hono/node-server/-/node-server-2.1.3.tgz",
+-      "integrity": "sha512-TA//nWMqPhbfdfneACk6t5a9eqbS9lABEPyKn0/xZTah3H3U2XaVg85rJFl0/Fyit0I552YDHgXGVSf3GwqbUw==",
++      "version": "2.1.6",
++      "resolved": "https://registry.npmjs.org/@hono/node-server/-/node-server-2.1.6.tgz",
++      "integrity": "sha512-p/KH9MnfNcsm3sR6x4lNgm5j+QN4Et8srKredl9DZfXiyZ1UQ3aQ2YVpFLbqktYN5JI+DB+VZFKM2PqE5hLKjQ==",
+       "license": "MIT",
+       "engines": {
+         "node": ">=20"
+       },
+       "peerDependencies": {
+-        "hono": "^4"
++        "hono": "^4 || ^5.0.0-0"
+       }
+     },
+     "node_modules/@img/colour": {
+@@ -1525,79 +1533,6 @@
+         "node": ">=18"
+       }
+     },
+-    "node_modules/@isaacs/cliui": {
+-      "version": "8.0.2",
+-      "resolved": "https://registry.npmjs.org/@isaacs/cliui/-/cliui-8.0.2.tgz",
+-      "integrity": "sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA==",
+-      "license": "ISC",
+-      "dependencies": {
+-        "string-width": "^5.1.2",
+-        "string-width-cjs": "npm:string-width@^4.2.0",
+-        "strip-ansi": "^7.0.1",
+-        "strip-ansi-cjs": "npm:strip-ansi@^6.0.1",
+-        "wrap-ansi": "^8.1.0",
+-        "wrap-ansi-cjs": "npm:wrap-ansi@^7.0.0"
+-      },
+-      "engines": {
+-        "node": ">=12"
+-      }
+-    },
+-    "node_modules/@isaacs/cliui/node_modules/ansi-regex": {
+-      "version": "6.2.2",
+-      "resolved": "https://registry.npmjs.org/ansi-regex/-/ansi-regex-6.2.2.tgz",
+-      "integrity": "sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg==",
+-      "license": "MIT",
+-      "engines": {
+-        "node": ">=12"
+-      },
+-      "funding": {
+-        "url": "https://github.com/chalk/ansi-regex?sponsor=1"
+-      }
+-    },
+-    "node_modules/@isaacs/cliui/node_modules/ansi-styles": {
+-      "version": "6.2.3",
+-      "resolved": "https://registry.npmjs.org/ansi-styles/-/ansi-styles-6.2.3.tgz",
+-      "integrity": "sha512-4Dj6M28JB+oAH8kFkTLUo+a2jwOFkuqb3yucU0CANcRRUbxS0cP0nZYCGjcc3BNXwRIsUVmDGgzawme7zvJHvg==",
+-      "license": "MIT",
+-      "engines": {
+-        "node": ">=12"
+-      },
+-      "funding": {
+-        "url": "https://github.com/chalk/ansi-styles?sponsor=1"
+-      }
+-    },
+-    "node_modules/@isaacs/cliui/node_modules/strip-ansi": {
+-      "version": "7.1.2",
+-      "resolved": "https://registry.npmjs.org/strip-ansi/-/strip-ansi-7.1.2.tgz",
+-      "integrity": "sha512-gmBGslpoQJtgnMAvOVqGZpEz9dyoKTCzy2nfz/n8aIFhN/jCE/rCmcxabB6jOOHV+0WNnylOxaxBQPSvcWklhA==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "ansi-regex": "^6.0.1"
+-      },
+-      "engines": {
+-        "node": ">=12"
+-      },
+-      "funding": {
+-        "url": "https://github.com/chalk/strip-ansi?sponsor=1"
+-      }
+-    },
+-    "node_modules/@isaacs/cliui/node_modules/wrap-ansi": {
+-      "version": "8.1.0",
+-      "resolved": "https://registry.npmjs.org/wrap-ansi/-/wrap-ansi-8.1.0.tgz",
+-      "integrity": "sha512-si7QWI6zUMq56bESFvagtmzMdGOtoxfR+Sez11Mobfc7tm+VkUckk9bW2UeffTGVUbOksxmSw0AA2gs8g71NCQ==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "ansi-styles": "^6.1.0",
+-        "string-width": "^5.0.1",
+-        "strip-ansi": "^7.0.1"
+-      },
+-      "engines": {
+-        "node": ">=12"
+-      },
+-      "funding": {
+-        "url": "https://github.com/chalk/wrap-ansi?sponsor=1"
+-      }
+-    },
+     "node_modules/@istanbuljs/schema": {
+       "version": "0.1.6",
+       "resolved": "https://registry.npmjs.org/@istanbuljs/schema/-/schema-0.1.6.tgz",
+@@ -1966,23 +1901,13 @@
+         "pako": "^1.0.10"
+       }
+     },
+-    "node_modules/@pkgjs/parseargs": {
+-      "version": "0.11.0",
+-      "resolved": "https://registry.npmjs.org/@pkgjs/parseargs/-/parseargs-0.11.0.tgz",
+-      "integrity": "sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==",
+-      "license": "MIT",
+-      "optional": true,
+-      "engines": {
+-        "node": ">=14"
+-      }
+-    },
+     "node_modules/@puppeteer/browsers": {
+-      "version": "3.2.3",
+-      "resolved": "https://registry.npmjs.org/@puppeteer/browsers/-/browsers-3.2.3.tgz",
+-      "integrity": "sha512-2Bt3m6dDAJqmZehn0wiXSYyQmuhyiHHZ7FjvrVaS1W2RoFGV6eCK71UvKYkNJjkwC1Q9nobjhvTMhLQztFVINA==",
++      "version": "3.3.0",
++      "resolved": "https://registry.npmjs.org/@puppeteer/browsers/-/browsers-3.3.0.tgz",
++      "integrity": "sha512-ZiOVHQ5KmsinwZJMwRc/a3xsGHbi9dRuAyf2gq4i9J5vRaI4r7SSIaJUniF1JVClG+qNoVdtBBWfL08N9Oib6g==",
+       "license": "Apache-2.0",
+       "dependencies": {
+-        "modern-tar": "^0.8.4",
++        "modern-tar": "^0.8.6",
+         "yargs": "^18.0.0"
+       },
+       "bin": {
+@@ -3426,6 +3351,7 @@
+       "version": "5.0.1",
+       "resolved": "https://registry.npmjs.org/ansi-regex/-/ansi-regex-5.0.1.tgz",
+       "integrity": "sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==",
++      "dev": true,
+       "license": "MIT",
+       "engines": {
+         "node": ">=8"
+@@ -3761,18 +3687,18 @@
+       "license": "MIT"
+     },
+     "node_modules/body-parser": {
+-      "version": "2.3.0",
+-      "resolved": "https://registry.npmjs.org/body-parser/-/body-parser-2.3.0.tgz",
+-      "integrity": "sha512-2cGmJupaNgg+QUwVLAucDuWuoMZ6EX9iHDRswZ5lsNYEmwPaRknMPCLZz07yTzVq/83p4o/wzbDZbBrTvGGTIw==",
++      "version": "2.4.0",
++      "resolved": "https://registry.npmjs.org/body-parser/-/body-parser-2.4.0.tgz",
++      "integrity": "sha512-Ifk1KcLrxaGt1occQagQNFNNOqRt1LFuehEnHHzB8Z6cRgIxRU1TBaiIsUiCdA+gy5PL7Y1IX31DNKkRmxtXjQ==",
+       "license": "MIT",
+       "dependencies": {
+         "bytes": "^3.1.2",
+-        "content-type": "^2.0.0",
++        "content-type": "^2.1.0",
+         "debug": "^4.4.3",
+         "http-errors": "^2.0.1",
+-        "iconv-lite": "^0.7.2",
++        "iconv-lite": "^0.7.3",
+         "on-finished": "^2.4.1",
+-        "qs": "^6.15.2",
++        "qs": "^6.16.1",
+         "raw-body": "^3.0.2",
+         "type-is": "^2.1.0"
+       },
+@@ -4307,13 +4233,13 @@
+       }
+     },
+     "node_modules/chromium-bidi": {
+-      "version": "17.0.2",
+-      "resolved": "https://registry.npmjs.org/chromium-bidi/-/chromium-bidi-17.0.2.tgz",
+-      "integrity": "sha512-5v9GQFhTktFvotn/OFNJBmKLKRAb6n9r0bVCwf7sHgWc3/JryK0bj1nn93L3pHFrfgcsu6Be6EWsDi+1XHTGDg==",
++      "version": "157.0.8090-0",
++      "resolved": "https://registry.npmjs.org/chromium-bidi/-/chromium-bidi-157.0.8090-0.tgz",
++      "integrity": "sha512-KJw7IQgqXwxpJgJlEIPg5mr2ZoqA+jkTRtc5EABI7sUJ3bu3cpI7NuEBoj4Gn1AsF78CaT9So5WQWspK3/wYag==",
+       "license": "Apache-2.0",
+       "dependencies": {
+         "mitt": "^3.0.1",
+-        "zod": "^3.24.1"
++        "zod": "^4.6.5"
+       },
+       "engines": {
+         "node": ">=20.19.0 <22.0.0 || >=22.12.0"
+@@ -5321,9 +5247,9 @@
+       }
+     },
+     "node_modules/devtools-protocol": {
+-      "version": "0.0.1687809",
+-      "resolved": "https://registry.npmjs.org/devtools-protocol/-/devtools-protocol-0.0.1687809.tgz",
+-      "integrity": "sha512-t7kSb+UKYdyxcmqy98U2P86ne6rCve3DIJ4+lp54i/hhClgFuG35JrLj23rO14Jw3sWDsp7i+22QhNU0+/qk8g==",
++      "version": "0.0.1724436",
++      "resolved": "https://registry.npmjs.org/devtools-protocol/-/devtools-protocol-0.0.1724436.tgz",
++      "integrity": "sha512-GcO1782pvzpmY4pQO1zjr8WZ95Wv8GodOs0v5J9QWwLGulTzfYIYECEd9iUsnqJmcehu+VMKxZquvjY8T2jhAA==",
+       "license": "BSD-3-Clause"
+     },
+     "node_modules/diff": {
+@@ -5642,12 +5568,6 @@
+       "dev": true,
+       "license": "BSD-3-Clause"
+     },
+-    "node_modules/eastasianwidth": {
+-      "version": "0.2.0",
+-      "resolved": "https://registry.npmjs.org/eastasianwidth/-/eastasianwidth-0.2.0.tgz",
+-      "integrity": "sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==",
+-      "license": "MIT"
+-    },
+     "node_modules/ee-first": {
+       "version": "1.1.1",
+       "resolved": "https://registry.npmjs.org/ee-first/-/ee-first-1.1.1.tgz",
+@@ -5670,12 +5590,6 @@
+         "node": ">=0.10.0"
+       }
+     },
+-    "node_modules/emoji-regex": {
+-      "version": "9.2.2",
+-      "resolved": "https://registry.npmjs.org/emoji-regex/-/emoji-regex-9.2.2.tgz",
+-      "integrity": "sha512-L18DaJsXSUk2+42pv8mLs5jJT2hqFkFE4j21wOmgbUqsZ2hL72NsUU785g9RXgo3s0ZNgVl42TiHp3ZtOv/Vyg==",
+-      "license": "MIT"
+-    },
+     "node_modules/encodeurl": {
+       "version": "2.0.0",
+       "resolved": "https://registry.npmjs.org/encodeurl/-/encodeurl-2.0.0.tgz",
+@@ -6213,9 +6127,9 @@
+       }
+     },
+     "node_modules/fast-uri": {
+-      "version": "3.1.8",
+-      "resolved": "https://registry.npmjs.org/fast-uri/-/fast-uri-3.1.8.tgz",
+-      "integrity": "sha512-GZMtZUTNRpOVIECoXwLNZS5xUGE+mVNbTB8h/7Rwh2TFWcBQiPzTgyZi05BF9UMZKkLJv8XBRJTlU7zg8+ZfMg==",
++      "version": "3.1.9",
++      "resolved": "https://registry.npmjs.org/fast-uri/-/fast-uri-3.1.9.tgz",
++      "integrity": "sha512-hS/0Wt3Ya043oKXs0sIxrMpKQITXhMLIrVAKKXi4gozGC9v7YRWVnXIZzjNPTO02M9BdxLCWqK1yRXgNziVyJQ==",
+       "funding": [
+         {
+           "type": "github",
+@@ -6424,6 +6338,7 @@
+       "version": "3.3.1",
+       "resolved": "https://registry.npmjs.org/foreground-child/-/foreground-child-3.3.1.tgz",
+       "integrity": "sha512-gIXjKqtFuWEgzFRJA9WCQeSJLZDjgJUOMCMzxtvFq/37KojM1BFGufqsCy0r4qSQmYLsZYMeyRqzIWOMup03sw==",
++      "dev": true,
+       "license": "ISC",
+       "dependencies": {
+         "cross-spawn": "^7.0.6",
+@@ -6796,26 +6711,6 @@
+         "url": "https://github.com/privatenumber/get-tsconfig?sponsor=1"
+       }
+     },
+-    "node_modules/glob": {
+-      "version": "10.5.0",
+-      "resolved": "https://registry.npmjs.org/glob/-/glob-10.5.0.tgz",
+-      "integrity": "sha512-DfXN8DfhJ7NH3Oe7cFmu3NCu1wKbkReJ8TorzSAFbSKrlNaQSKfIzqYqVY8zlbs2NLBbWpRiU52GX2PbaBVNkg==",
+-      "license": "ISC",
+-      "dependencies": {
+-        "foreground-child": "^3.1.0",
+-        "jackspeak": "^3.1.2",
+-        "minimatch": "^9.0.4",
+-        "minipass": "^7.1.2",
+-        "package-json-from-dist": "^1.0.0",
+-        "path-scurry": "^1.11.1"
+-      },
+-      "bin": {
+-        "glob": "dist/esm/bin.mjs"
+-      },
+-      "funding": {
+-        "url": "https://github.com/sponsors/isaacs"
+-      }
+-    },
+     "node_modules/glob-parent": {
+       "version": "5.1.2",
+       "resolved": "https://registry.npmjs.org/glob-parent/-/glob-parent-5.1.2.tgz",
+@@ -7074,9 +6969,9 @@
+       }
+     },
+     "node_modules/hono": {
+-      "version": "4.13.13",
+-      "resolved": "https://registry.npmjs.org/hono/-/hono-4.13.13.tgz",
+-      "integrity": "sha512-CQ46U0ZkAGmbT/4UxdzzGJpacP2IeKgY4a5/tOI9AABbpOMfK739wfDXmv1usCk+3RkKj1hQy4/fjhiwa2xlrA==",
++      "version": "4.13.16",
++      "resolved": "https://registry.npmjs.org/hono/-/hono-4.13.16.tgz",
++      "integrity": "sha512-AOLOEhvrV+iH92xXCnFr/5+3KjPKcI3xP63XJtX5spAnkznPdHijlIsUTpi7/9EhWqrTCekw5c5zh1K+YsVw7A==",
+       "license": "MIT",
+       "engines": {
+         "node": ">=16.9.0"
+@@ -7339,9 +7234,9 @@
+       }
+     },
+     "node_modules/ip-address": {
+-      "version": "10.7.3",
+-      "resolved": "https://registry.npmjs.org/ip-address/-/ip-address-10.7.3.tgz",
+-      "integrity": "sha512-A1kdq/tSb5QjvKvAMgIoEvDBIgL7qaqVP/jkvSwYYRZ9iEzvPpopxp2wQfu3SuZRHtpHNxMn8Fs0bS+gf5Xmwg==",
++      "version": "10.7.4",
++      "resolved": "https://registry.npmjs.org/ip-address/-/ip-address-10.7.4.tgz",
++      "integrity": "sha512-DWBMKyeM25D70nrIiTkgQth59/G+naKOTep6huF9j+GmeK3DMD60Zvxg5d5qQnz+38AHgou6ean2LECX+lrKDg==",
+       "license": "MIT",
+       "engines": {
+         "node": ">= 12"
+@@ -7436,6 +7331,7 @@
+       "version": "3.0.0",
+       "resolved": "https://registry.npmjs.org/is-fullwidth-code-point/-/is-fullwidth-code-point-3.0.0.tgz",
+       "integrity": "sha512-zymm5+u+sCsSWyD9qNaejV3DFvhCKclKdizYaJUuHA83RLjb7nSuGnddCHGv0hk+KY7BMAlsWeK4Ueg6EV6XQg==",
++      "dev": true,
+       "license": "MIT",
+       "engines": {
+         "node": ">=8"
+@@ -7700,21 +7596,6 @@
+         "node": ">= 4"
+       }
+     },
+-    "node_modules/jackspeak": {
+-      "version": "3.4.3",
+-      "resolved": "https://registry.npmjs.org/jackspeak/-/jackspeak-3.4.3.tgz",
+-      "integrity": "sha512-OGlZQpz2yfahA/Rd1Y8Cd9SIEsqvXkLVoSw/cgwhnhFMDbsQFeZYoJJ7bIZBS9BcamUW96asq/npPWugM+RQBw==",
+-      "license": "BlueOak-1.0.0",
+-      "dependencies": {
+-        "@isaacs/cliui": "^8.0.2"
+-      },
+-      "funding": {
+-        "url": "https://github.com/sponsors/isaacs"
+-      },
+-      "optionalDependencies": {
+-        "@pkgjs/parseargs": "^0.11.0"
+-      }
+-    },
+     "node_modules/jest-worker": {
+       "version": "27.5.1",
+       "resolved": "https://registry.npmjs.org/jest-worker/-/jest-worker-27.5.1.tgz",
+@@ -8008,9 +7889,9 @@
+       }
+     },
+     "node_modules/lilconfig": {
+-      "version": "3.1.3",
+-      "resolved": "https://registry.npmjs.org/lilconfig/-/lilconfig-3.1.3.tgz",
+-      "integrity": "sha512-/vlFKAoH5Cgt3Ie+JLhRbwOsCQePABiU3tJ1egGvyQ+33R/vcwM2Zl2QR/LzjsBeItPt3oSVXapn+m4nQDvpzw==",
++      "version": "3.1.5",
++      "resolved": "https://registry.npmjs.org/lilconfig/-/lilconfig-3.1.5.tgz",
++      "integrity": "sha512-aRAOI9Ia43ygL4o1EOmC/sc/0OFxrm7qcQngiIyWaqVnSnz932ybJ07zyCcgMNGSDP8Yxaf88Xj1zHEXmvQ4SA==",
+       "license": "MIT",
+       "engines": {
+         "node": ">=14"
+@@ -8565,9 +8446,9 @@
+       "license": "ISC"
+     },
+     "node_modules/markdown-it": {
+-      "version": "14.3.2",
+-      "resolved": "https://registry.npmjs.org/markdown-it/-/markdown-it-14.3.2.tgz",
+-      "integrity": "sha512-sHHjZ5fJKlgrG4qns2YwVcdNep35h5fERrfkD2YNsb9UFk0UIHarbiTaHKVMlPuWAoiilyK8Fv/jAm11slsY7Q==",
++      "version": "14.3.3",
++      "resolved": "https://registry.npmjs.org/markdown-it/-/markdown-it-14.3.3.tgz",
++      "integrity": "sha512-L//tDAkjTjJCU6pBUSBTgs3Kg4InVaZuUZog/b6V12UKhcDQ7S78877ibbCanRExwPuYP1CZD7Gd2dxSy1GXRg==",
+       "funding": [
+         {
+           "type": "github",
+@@ -9586,21 +9467,6 @@
+         "url": "https://github.com/sponsors/sindresorhus"
+       }
+     },
+-    "node_modules/minimatch": {
+-      "version": "9.0.9",
+-      "resolved": "https://registry.npmjs.org/minimatch/-/minimatch-9.0.9.tgz",
+-      "integrity": "sha512-OBwBN9AL4dqmETlpS2zasx+vTeWclWzkblfZk7KTA5j3jeOONz/tRCnZomUyvNg83wL5Zv9Ss6HMJXAgL8R2Yg==",
+-      "license": "ISC",
+-      "dependencies": {
+-        "brace-expansion": "^2.0.2"
+-      },
+-      "engines": {
+-        "node": ">=16 || 14 >=14.17"
+-      },
+-      "funding": {
+-        "url": "https://github.com/sponsors/isaacs"
+-      }
+-    },
+     "node_modules/minimist": {
+       "version": "1.2.8",
+       "resolved": "https://registry.npmjs.org/minimist/-/minimist-1.2.8.tgz",
+@@ -9614,6 +9480,7 @@
+       "version": "7.1.3",
+       "resolved": "https://registry.npmjs.org/minipass/-/minipass-7.1.3.tgz",
+       "integrity": "sha512-tEBHqDnIoM/1rXME1zgka9g6Q2lcoCkxHLuc7ODJ5BxbP5d4c2Z5cGgtXAku59200Cx7diuHTOYfSBD8n6mm8A==",
++      "dev": true,
+       "license": "BlueOak-1.0.0",
+       "engines": {
+         "node": ">=16 || 14 >=14.17"
+@@ -9639,9 +9506,9 @@
+       }
+     },
+     "node_modules/modern-tar": {
+-      "version": "0.8.5",
+-      "resolved": "https://registry.npmjs.org/modern-tar/-/modern-tar-0.8.5.tgz",
+-      "integrity": "sha512-snEhs+6G5Tjd4I7tLCDOaoln2RgE0bD19RzEKgvgK2hZ5VKy3MpLhLTZ2fWpXSTg4K2cyPwp+VHATFJhxfnOeA==",
++      "version": "0.8.6",
++      "resolved": "https://registry.npmjs.org/modern-tar/-/modern-tar-0.8.6.tgz",
++      "integrity": "sha512-LYSks0tNVqbtez/9OB0YFP6qLRSqkdAxJWOQpVaR67lNTbj2zNLyYpowkRMia5lXLCZKzxwoxkxH2MbbBR2aEg==",
+       "license": "MIT",
+       "engines": {
+         "node": ">=18.0.0"
+@@ -10005,9 +9872,9 @@
+       }
+     },
+     "node_modules/node-forge": {
+-      "version": "1.4.0",
+-      "resolved": "https://registry.npmjs.org/node-forge/-/node-forge-1.4.0.tgz",
+-      "integrity": "sha512-LarFH0+6VfriEhqMMcLX2F7SwSXeWwnEAJEsYm5QKWchiVYVvJyV9v7UDvUv+w5HO23ZpQTXDv/GxdDdMyOuoQ==",
++      "version": "1.4.4",
++      "resolved": "https://registry.npmjs.org/node-forge/-/node-forge-1.4.4.tgz",
++      "integrity": "sha512-T6VRRpF3+czIGcXW/LOeoD7Ej28d8CF1UMEAbJyJRUtYMvyXAgxUPW2kbUibumvV9LiUQAznJOFyeYclzSJMMg==",
+       "license": "(BSD-3-Clause OR GPL-2.0)",
+       "engines": {
+         "node": ">= 6.13.0"
+@@ -10482,12 +10349,6 @@
+         "node": ">=6"
+       }
+     },
+-    "node_modules/package-json-from-dist": {
+-      "version": "1.0.1",
+-      "resolved": "https://registry.npmjs.org/package-json-from-dist/-/package-json-from-dist-1.0.1.tgz",
+-      "integrity": "sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw==",
+-      "license": "BlueOak-1.0.0"
+-    },
+     "node_modules/pako": {
+       "version": "1.0.11",
+       "resolved": "https://registry.npmjs.org/pako/-/pako-1.0.11.tgz",
+@@ -10570,22 +10431,6 @@
+       "dev": true,
+       "license": "MIT"
+     },
+-    "node_modules/path-scurry": {
+-      "version": "1.11.1",
+-      "resolved": "https://registry.npmjs.org/path-scurry/-/path-scurry-1.11.1.tgz",
+-      "integrity": "sha512-Xa4Nw17FS9ApQFJ9umLiJS4orGjm7ZzwUrwamcGQuHSzDyth9boKDaycYdDcZDuqYATXw4HFXgaqWTctW/v1HA==",
+-      "license": "BlueOak-1.0.0",
+-      "dependencies": {
+-        "lru-cache": "^10.2.0",
+-        "minipass": "^5.0.0 || ^6.0.2 || ^7.0.0"
+-      },
+-      "engines": {
+-        "node": ">=16 || 14 >=14.18"
+-      },
+-      "funding": {
+-        "url": "https://github.com/sponsors/isaacs"
+-      }
+-    },
+     "node_modules/path-to-regexp": {
+       "version": "8.4.2",
+       "resolved": "https://registry.npmjs.org/path-to-regexp/-/path-to-regexp-8.4.2.tgz",
+@@ -11023,18 +10868,18 @@
+       }
+     },
+     "node_modules/puppeteer": {
+-      "version": "25.12.0",
+-      "resolved": "https://registry.npmjs.org/puppeteer/-/puppeteer-25.12.0.tgz",
+-      "integrity": "sha512-agM9cYcxbvmU17w9qtF17s7/Vv7Dhbyig6AWwIgvQQLR2dKZdPqNvRPanac7xH4iMPcNYOCfyCkwqCnR4nVOcA==",
++      "version": "25.19.0",
++      "resolved": "https://registry.npmjs.org/puppeteer/-/puppeteer-25.19.0.tgz",
++      "integrity": "sha512-38yJg6bAi6TOfQr/UTKllIVfm5zMWxBzURETCF3mzSylKQr9yUMyLz7YMl2yJCgfkJfhRl+j0qeKtm++X4J68w==",
+       "hasInstallScript": true,
+       "license": "Apache-2.0",
+       "dependencies": {
+-        "@puppeteer/browsers": "3.2.3",
+-        "chromium-bidi": "17.0.2",
+-        "devtools-protocol": "0.0.1687809",
+-        "lilconfig": "^3.1.3",
+-        "puppeteer-core": "25.12.0",
+-        "typed-query-selector": "^2.12.2"
++        "@puppeteer/browsers": "3.3.0",
++        "chromium-bidi": "157.0.8090-0",
++        "devtools-protocol": "0.0.1724436",
++        "lilconfig": "^3.1.5",
++        "puppeteer-core": "25.19.0",
++        "typed-query-selector": "^2.12.3"
+       },
+       "bin": {
+         "puppeteer": "lib/puppeteer/node/cli.js"
+@@ -11044,17 +10889,17 @@
+       }
+     },
+     "node_modules/puppeteer-core": {
+-      "version": "25.12.0",
+-      "resolved": "https://registry.npmjs.org/puppeteer-core/-/puppeteer-core-25.12.0.tgz",
+-      "integrity": "sha512-z6LQUt5SH7jwGtGA+nMtJuEjZIsqPiwQ+EFHCYuVDQrJpvifNmmGuyDvTzAKPyFzihxgHc5f3aMzu2kn8Ps37A==",
++      "version": "25.19.0",
++      "resolved": "https://registry.npmjs.org/puppeteer-core/-/puppeteer-core-25.19.0.tgz",
++      "integrity": "sha512-F4pw8kpSczJS3TCHBw7/qskDxv4cMj09oOv7BwhHGYOerxLF1Sk2t4tpWlLvy6Vx/mM6TuqkDj4j0j3PRN1FiA==",
+       "license": "Apache-2.0",
+       "dependencies": {
+-        "@puppeteer/browsers": "3.2.3",
+-        "chromium-bidi": "17.0.2",
+-        "devtools-protocol": "0.0.1687809",
+-        "typed-query-selector": "^2.12.2",
+-        "webdriver-bidi-protocol": "0.4.3",
+-        "ws": "^8.21.3"
++        "@puppeteer/browsers": "3.3.0",
++        "chromium-bidi": "157.0.8090-0",
++        "devtools-protocol": "0.0.1724436",
++        "typed-query-selector": "^2.12.3",
++        "webdriver-bidi-protocol": "1.0.2",
++        "ws": "^8.23.0"
+       },
+       "engines": {
+         "node": ">=22.12.0"
+@@ -11071,9 +10916,9 @@
+       }
+     },
+     "node_modules/qs": {
+-      "version": "6.16.0",
+-      "resolved": "https://registry.npmjs.org/qs/-/qs-6.16.0.tgz",
+-      "integrity": "sha512-h6fhOIaRrID2CbEY2fqs+7t+UXZo+MLAnU5gRIq85uFtdiUPCdsApMlHhXogKVM4HM2DVbIjGNTTYH2OcmP1vA==",
++      "version": "6.16.1",
++      "resolved": "https://registry.npmjs.org/qs/-/qs-6.16.1.tgz",
++      "integrity": "sha512-5Px6J7rfHBAGUhNQ3es4YzcOdBBw0SDcVtThJml4RdnKw4tKs2epA0kPZ+K8X+WiHktT93RHVcQ/3ym5aTCgtg==",
+       "license": "BSD-3-Clause",
+       "dependencies": {
+         "es-define-property": "^1.0.1",
+@@ -12229,6 +12074,7 @@
+       "version": "4.1.0",
+       "resolved": "https://registry.npmjs.org/signal-exit/-/signal-exit-4.1.0.tgz",
+       "integrity": "sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==",
++      "dev": true,
+       "license": "ISC",
+       "engines": {
+         "node": ">=14"
+@@ -12412,6 +12258,15 @@
+         "node": ">=0.10.0"
+       }
+     },
++    "node_modules/string_decoder": {
++      "version": "1.3.0",
++      "resolved": "https://registry.npmjs.org/string_decoder/-/string_decoder-1.3.0.tgz",
++      "integrity": "sha512-hkRX8U1WjJFd8LsDJ2yQ/wWWxaopEsABU1XfkM8A+j0+85JAGppt16cr1Whg6KIbb4okU6Mql6BOj+uup/wKeA==",
++      "license": "MIT",
++      "dependencies": {
++        "safe-buffer": "~5.2.0"
++      }
++    },
+     "node_modules/string-replace-loader": {
+       "version": "3.3.0",
+       "resolved": "https://registry.npmjs.org/string-replace-loader/-/string-replace-loader-3.3.0.tgz",
+@@ -12428,97 +12283,11 @@
+         "webpack": "^5"
+       }
+     },
+-    "node_modules/string-width": {
+-      "version": "5.1.2",
+-      "resolved": "https://registry.npmjs.org/string-width/-/string-width-5.1.2.tgz",
+-      "integrity": "sha512-HnLOCR3vjcY8beoNLtcjZ5/nxn2afmME6lhrDrebokqMap+XbeW8n9TXpPDOqdGK5qcI3oT0GKTW6wC7EMiVqA==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "eastasianwidth": "^0.2.0",
+-        "emoji-regex": "^9.2.2",
+-        "strip-ansi": "^7.0.1"
+-      },
+-      "engines": {
+-        "node": ">=12"
+-      },
+-      "funding": {
+-        "url": "https://github.com/sponsors/sindresorhus"
+-      }
+-    },
+-    "node_modules/string-width-cjs": {
+-      "name": "string-width",
+-      "version": "4.2.3",
+-      "resolved": "https://registry.npmjs.org/string-width/-/string-width-4.2.3.tgz",
+-      "integrity": "sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "emoji-regex": "^8.0.0",
+-        "is-fullwidth-code-point": "^3.0.0",
+-        "strip-ansi": "^6.0.1"
+-      },
+-      "engines": {
+-        "node": ">=8"
+-      }
+-    },
+-    "node_modules/string-width-cjs/node_modules/emoji-regex": {
+-      "version": "8.0.0",
+-      "resolved": "https://registry.npmjs.org/emoji-regex/-/emoji-regex-8.0.0.tgz",
+-      "integrity": "sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==",
+-      "license": "MIT"
+-    },
+-    "node_modules/string-width/node_modules/ansi-regex": {
+-      "version": "6.2.2",
+-      "resolved": "https://registry.npmjs.org/ansi-regex/-/ansi-regex-6.2.2.tgz",
+-      "integrity": "sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg==",
+-      "license": "MIT",
+-      "engines": {
+-        "node": ">=12"
+-      },
+-      "funding": {
+-        "url": "https://github.com/chalk/ansi-regex?sponsor=1"
+-      }
+-    },
+-    "node_modules/string-width/node_modules/strip-ansi": {
+-      "version": "7.1.2",
+-      "resolved": "https://registry.npmjs.org/strip-ansi/-/strip-ansi-7.1.2.tgz",
+-      "integrity": "sha512-gmBGslpoQJtgnMAvOVqGZpEz9dyoKTCzy2nfz/n8aIFhN/jCE/rCmcxabB6jOOHV+0WNnylOxaxBQPSvcWklhA==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "ansi-regex": "^6.0.1"
+-      },
+-      "engines": {
+-        "node": ">=12"
+-      },
+-      "funding": {
+-        "url": "https://github.com/chalk/strip-ansi?sponsor=1"
+-      }
+-    },
+-    "node_modules/string_decoder": {
+-      "version": "1.3.0",
+-      "resolved": "https://registry.npmjs.org/string_decoder/-/string_decoder-1.3.0.tgz",
+-      "integrity": "sha512-hkRX8U1WjJFd8LsDJ2yQ/wWWxaopEsABU1XfkM8A+j0+85JAGppt16cr1Whg6KIbb4okU6Mql6BOj+uup/wKeA==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "safe-buffer": "~5.2.0"
+-      }
+-    },
+     "node_modules/strip-ansi": {
+       "version": "6.0.1",
+       "resolved": "https://registry.npmjs.org/strip-ansi/-/strip-ansi-6.0.1.tgz",
+       "integrity": "sha512-Y38VPSHcqkFrCpFnQ9vuSXmquuv5oXOKpGeT6aGrr3o3Gc9AlVa6JBfUSOCnbxGGZF+/0ooI7KrPuUSztUdU5A==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "ansi-regex": "^5.0.1"
+-      },
+-      "engines": {
+-        "node": ">=8"
+-      }
+-    },
+-    "node_modules/strip-ansi-cjs": {
+-      "name": "strip-ansi",
+-      "version": "6.0.1",
+-      "resolved": "https://registry.npmjs.org/strip-ansi/-/strip-ansi-6.0.1.tgz",
+-      "integrity": "sha512-Y38VPSHcqkFrCpFnQ9vuSXmquuv5oXOKpGeT6aGrr3o3Gc9AlVa6JBfUSOCnbxGGZF+/0ooI7KrPuUSztUdU5A==",
++      "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "ansi-regex": "^5.0.1"
+@@ -13171,9 +12940,9 @@
+       }
+     },
+     "node_modules/typed-query-selector": {
+-      "version": "2.12.3",
+-      "resolved": "https://registry.npmjs.org/typed-query-selector/-/typed-query-selector-2.12.3.tgz",
+-      "integrity": "sha512-/dtuMZyutHLlrxWhhC1uib00ELUr2dZ8C9B8YzZYsJmeE3V56OxRblrSM2UaF142pcMtak7ehZ6+poWGeehNIg==",
++      "version": "2.12.4",
++      "resolved": "https://registry.npmjs.org/typed-query-selector/-/typed-query-selector-2.12.4.tgz",
++      "integrity": "sha512-lF6/OY655DSWZeuNovde8TZhju6QyC0Xtav57b07oZQ1EQvfSowA3+WfLEhvFJOc9sVfAtW5hie1lGIppOqbpQ==",
+       "license": "MIT"
+     },
+     "node_modules/typedarray": {
+@@ -13599,9 +13368,9 @@
+       }
+     },
+     "node_modules/webdriver-bidi-protocol": {
+-      "version": "0.4.3",
+-      "resolved": "https://registry.npmjs.org/webdriver-bidi-protocol/-/webdriver-bidi-protocol-0.4.3.tgz",
+-      "integrity": "sha512-uuN0goWfxP22B7J/uAgBpOYNPttC+XVseYE+rSY5+rQ+YBeVz/VORw8WbmLVcqW78zNg5A4qnjNXYUWR3il2ig==",
++      "version": "1.0.2",
++      "resolved": "https://registry.npmjs.org/webdriver-bidi-protocol/-/webdriver-bidi-protocol-1.0.2.tgz",
++      "integrity": "sha512-nghazPI+J5RrLZ+qb6vMjC6l1/tnwqr2muVEax4Ufd6eIdcjeqNnhLsAxTG9s+7Zf4umgf0DrEwDC8CoU91nAA==",
+       "license": "Apache-2.0"
+     },
+     "node_modules/webidl-conversions": {
+@@ -13932,44 +13701,6 @@
+         "node": ">=8"
+       }
+     },
+-    "node_modules/wrap-ansi-cjs": {
+-      "name": "wrap-ansi",
+-      "version": "7.0.0",
+-      "resolved": "https://registry.npmjs.org/wrap-ansi/-/wrap-ansi-7.0.0.tgz",
+-      "integrity": "sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "ansi-styles": "^4.0.0",
+-        "string-width": "^4.1.0",
+-        "strip-ansi": "^6.0.0"
+-      },
+-      "engines": {
+-        "node": ">=10"
+-      },
+-      "funding": {
+-        "url": "https://github.com/chalk/wrap-ansi?sponsor=1"
+-      }
+-    },
+-    "node_modules/wrap-ansi-cjs/node_modules/emoji-regex": {
+-      "version": "8.0.0",
+-      "resolved": "https://registry.npmjs.org/emoji-regex/-/emoji-regex-8.0.0.tgz",
+-      "integrity": "sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==",
+-      "license": "MIT"
+-    },
+-    "node_modules/wrap-ansi-cjs/node_modules/string-width": {
+-      "version": "4.2.3",
+-      "resolved": "https://registry.npmjs.org/string-width/-/string-width-4.2.3.tgz",
+-      "integrity": "sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==",
+-      "license": "MIT",
+-      "dependencies": {
+-        "emoji-regex": "^8.0.0",
+-        "is-fullwidth-code-point": "^3.0.0",
+-        "strip-ansi": "^6.0.1"
+-      },
+-      "engines": {
+-        "node": ">=8"
+-      }
+-    },
+     "node_modules/wrap-ansi/node_modules/emoji-regex": {
+       "version": "8.0.0",
+       "resolved": "https://registry.npmjs.org/emoji-regex/-/emoji-regex-8.0.0.tgz",
+@@ -13999,9 +13730,9 @@
+       "license": "ISC"
+     },
+     "node_modules/ws": {
+-      "version": "8.22.0",
+-      "resolved": "https://registry.npmjs.org/ws/-/ws-8.22.0.tgz",
+-      "integrity": "sha512-Ydggc987+RO0AnWtZ/7Wq9FtNvcrL1b/RO0ud9mWjUPgDrsAAwQSF51sm2hm1XofbU/4jkpGEsLFsZZxU+1DOg==",
++      "version": "8.23.0",
++      "resolved": "https://registry.npmjs.org/ws/-/ws-8.23.0.tgz",
++      "integrity": "sha512-wCkmX8QMOrKjgO8HW2WyDbTSGeqkocxgDzS9iR79rEAexty6/2qzilx3Ag8Tqf9ykop3irLKle0MtVn5qjVnoQ==",
+       "license": "MIT",
+       "engines": {
+         "node": ">=10.0.0"
+@@ -14263,9 +13994,9 @@
+       }
+     },
+     "node_modules/zod": {
+-      "version": "3.25.76",
+-      "resolved": "https://registry.npmjs.org/zod/-/zod-3.25.76.tgz",
+-      "integrity": "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==",
++      "version": "4.6.7",
++      "resolved": "https://registry.npmjs.org/zod/-/zod-4.6.7.tgz",
++      "integrity": "sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==",
+       "license": "MIT",
+       "funding": {
+         "url": "https://github.com/sponsors/colinhacks"
+diff --git a/package.json b/package.json
+index 8165a7a..30998ed 100644
+--- a/package.json
++++ b/package.json
+@@ -110,13 +110,12 @@
+     "cross-fetch": "^4.1.0",
+     "exceljs": "^4.4.0",
+     "fastest-levenshtein": "^1.0.16",
+-    "glob": "^10.3.10",
+     "highlight.js": "^11.11.1",
+     "isbinaryfile": "^5.0.4",
+-    "markdown-it": "^14.1.0",
++    "markdown-it": "14.3.3",
+     "md-to-pdf": "^5.2.5",
+     "mqtt": "5.16.0",
+-    "node-forge": "1.4.0",
++    "node-forge": "1.4.4",
+     "open": "^10.2.0",
+     "pdf-lib": "^1.17.1",
+     "pizzip": "^3.2.0",
+@@ -129,8 +128,7 @@
+     "unbash": "6.0.1",
+     "unified": "^11.0.5",
+     "unpdf": "~1.8.1",
+-    "zod": "^3.24.1",
+-    "zod-to-json-schema": "^3.23.5"
++    "zod": "4.6.7"
+   },
+   "optionalDependencies": {
+     "caffeinate": "^1.0.1"
+@@ -156,8 +154,15 @@
+     "ws": "^8.18.3"
+   },
+   "overrides": {
++    "@hono/node-server": "2.1.6",
++    "body-parser": "2.4.0",
++    "fast-uri": "3.1.9",
++    "hono": "4.13.16",
++    "ip-address": "10.7.4",
++    "qs": "6.16.1",
+     "md-to-pdf": {
+-      "chokidar": "^4.0.3"
++      "chokidar": "^4.0.3",
++      "puppeteer": "25.19.0"
+     },
+     "exceljs": {
+       "uuid": "^11.1.1"
+diff --git a/src/config.ts b/src/config.ts
+index bb1f879..a5cd707 100644
+--- a/src/config.ts
++++ b/src/config.ts
+@@ -3,7 +3,7 @@ import os from 'os';
+ 
+ // Use user's home directory for configuration files
+ export const USER_HOME = os.homedir();
+-const CONFIG_DIR = path.join(USER_HOME, '.claude-server-commander');
++export const CONFIG_DIR = process.env.LOCAL_DC_STATE_DIR || path.join(USER_HOME, '.claude-server-commander');
+ 
+ // Paths relative to the config directory
+ export const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
+diff --git a/src/index.ts b/src/index.ts
+index 1cd207c..410f93c 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -136,7 +136,7 @@ async function runServer() {
+       transport.sendLog('info', 'MCP fully initialized, all startup messages sent');
+ 
+       // Preemptively check/download Chrome for PDF generation (runs in background)
+-      ensureChromeAvailable();
++      if (!process.env.LOCAL_DC_ROOT) ensureChromeAvailable();
+ 
+       // Load the Excel, DOCX and PDF packages, one at a time, now that initialize
+       // has been answered; until then the calls that need them answer at once
+diff --git a/src/server.ts b/src/server.ts
+index acbe185..0a75e36 100644
+--- a/src/server.ts
++++ b/src/server.ts
+@@ -13,7 +13,7 @@ import {
+     type CallToolRequest,
+     type InitializeRequest,
+ } from "@modelcontextprotocol/sdk/types.js";
+-import { zodToJsonSchema } from "zod-to-json-schema";
++import { z } from "zod";
+ import { getSystemInfo, getOSSpecificGuidance, getPathGuidance, getDevelopmentToolGuidance } from './utils/system-info.js';
+ 
+ // Get system information once at startup
+@@ -303,10 +303,32 @@ function shouldIncludeTool(toolName: string): boolean {
+     return true;
+ }
+ 
++const localDisabledTools = new Set([
++    'get_config', 'set_config_value', 'get_recent_tool_calls', 'track_ui_event',
++    'give_feedback_to_desktop_commander',
++]);
++const localTerminalTools = new Set([
++    'start_process', 'read_process_output', 'interact_with_process', 'force_terminate',
++    'list_sessions', 'list_processes', 'kill_process',
++]);
++
++function localToolEnabled(name: string): boolean {
++    return !process.env.LOCAL_DC_ROOT || (!localDisabledTools.has(name) &&
++        (!localTerminalTools.has(name) || process.env.LOCAL_DC_TERMINAL === '1'));
++}
++
++function toToolInputSchema(schema: z.ZodType) {
++    return {
++        ...z.toJSONSchema(schema, { target: 'draft-07', io: 'input' }),
++        type: 'object' as const,
++        additionalProperties: false,
++    };
++}
++
+ server.setRequestHandler(ListToolsRequestSchema, async () => {
+     try {
+         // logToStderr('debug', 'Generating tools list...');
+-        const showMcpUiPreviews = await shouldShowMcpUiPreviews();
++        const showMcpUiPreviews = !process.env.LOCAL_DC_ROOT && await shouldShowMcpUiPreviews();
+ 
+         // Build complete tools array
+         const allTools = [
+@@ -326,7 +348,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                         - version (version of the DesktopCommander)
+                         - systemInfo (operating system and environment details)
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(GetConfigArgsSchema),
++                inputSchema: toToolInputSchema(GetConfigArgsSchema),
+                 _meta: buildUiToolMeta(CONFIG_EDITOR_RESOURCE_URI, true, showMcpUiPreviews),
+                 annotations: {
+                     title: "Get Configuration",
+@@ -355,7 +377,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                         to the entire file system, regardless of the operating system.
+                         
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(SetConfigValueArgsSchema),
++                inputSchema: toToolInputSchema(SetConfigValueArgsSchema),
+                 annotations: {
+                     title: "Set Configuration Value",
+                     readOnlyHint: false,
+@@ -421,7 +443,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+ 
+                         ${PATH_GUIDANCE}
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(ReadFileArgsSchema),
++                inputSchema: toToolInputSchema(ReadFileArgsSchema),
+                 _meta: buildUiToolMeta(FILE_PREVIEW_RESOURCE_URI, true, showMcpUiPreviews),
+                 annotations: {
+                     title: "Read File or URL",
+@@ -444,7 +466,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                         
+                         ${PATH_GUIDANCE}
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(ReadMultipleFilesArgsSchema),
++                inputSchema: toToolInputSchema(ReadMultipleFilesArgsSchema),
+                 annotations: {
+                     title: "Read Multiple Files",
+                     readOnlyHint: true,
+@@ -475,7 +497,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+ 
+                         ${PATH_GUIDANCE}
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(WriteFileArgsSchema),
++                inputSchema: toToolInputSchema(WriteFileArgsSchema),
+                 _meta: buildUiToolMeta(FILE_PREVIEW_RESOURCE_URI, true, showMcpUiPreviews),
+                 annotations: {
+                     title: "Write File",
+@@ -537,7 +559,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+ 
+                         ${PATH_GUIDANCE}
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(WritePdfArgsSchema),
++                inputSchema: toToolInputSchema(WritePdfArgsSchema),
+                 annotations: {
+                     title: "Write/Modify PDF",
+                     readOnlyHint: false,
+@@ -555,7 +577,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                         
+                         ${PATH_GUIDANCE}
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(CreateDirectoryArgsSchema),
++                inputSchema: toToolInputSchema(CreateDirectoryArgsSchema),
+                 annotations: {
+                     title: "Create Directory",
+                     readOnlyHint: false,
+@@ -596,7 +618,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                         
+                         ${PATH_GUIDANCE}
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(ListDirectoryArgsSchema),
++                inputSchema: toToolInputSchema(ListDirectoryArgsSchema),
+                 _meta: buildUiToolMeta(FILE_PREVIEW_RESOURCE_URI, true, showMcpUiPreviews),
+                 annotations: {
+                     title: "List Directory Contents",
+@@ -615,7 +637,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                         
+                         ${PATH_GUIDANCE}
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(MoveFileArgsSchema),
++                inputSchema: toToolInputSchema(MoveFileArgsSchema),
+                 annotations: {
+                     title: "Move/Rename File",
+                     readOnlyHint: false,
+@@ -699,7 +721,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                         
+                         ${PATH_GUIDANCE}
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(StartSearchArgsSchema),
++                inputSchema: toToolInputSchema(StartSearchArgsSchema),
+                 annotations: {
+                     title: "Start Search",
+                     readOnlyHint: true,
+@@ -731,7 +753,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                         results from a search started with start_search.
+                         
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(GetMoreSearchResultsArgsSchema),
++                inputSchema: toToolInputSchema(GetMoreSearchResultsArgsSchema),
+                 annotations: {
+                     title: "Get Search Results",
+                     readOnlyHint: true,
+@@ -752,7 +774,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                         automatically cleaned up after 5 minutes.
+                         
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(StopSearchArgsSchema),
++                inputSchema: toToolInputSchema(StopSearchArgsSchema),
+                 annotations: {
+                     title: "Stop Search",
+                     readOnlyHint: false,
+@@ -770,7 +792,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                         multiple concurrent searches.
+                         
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(ListSearchesArgsSchema),
++                inputSchema: toToolInputSchema(ListSearchesArgsSchema),
+                 annotations: {
+                     title: "List Active Searches",
+                     readOnlyHint: true,
+@@ -796,7 +818,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                         
+                         ${PATH_GUIDANCE}
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(GetFileInfoArgsSchema),
++                inputSchema: toToolInputSchema(GetFileInfoArgsSchema),
+                 annotations: {
+                     title: "Get File Information",
+                     readOnlyHint: true,
+@@ -861,7 +883,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+ 
+                         ${PATH_GUIDANCE}
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(EditBlockArgsSchema),
++                inputSchema: toToolInputSchema(EditBlockArgsSchema),
+                 _meta: buildUiToolMeta(FILE_PREVIEW_RESOURCE_URI, true, showMcpUiPreviews),
+                 annotations: {
+                     title: "Edit Block",
+@@ -913,7 +935,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+ 
+                         ${PATH_GUIDANCE}
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(StartProcessArgsSchema),
++                inputSchema: toToolInputSchema(StartProcessArgsSchema),
+                 annotations: {
+                     title: "Start Terminal Process",
+                     readOnlyHint: false,
+@@ -956,7 +978,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                         Timeout reached (may still be running)
+ 
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(ReadProcessOutputArgsSchema),
++                inputSchema: toToolInputSchema(ReadProcessOutputArgsSchema),
+                 annotations: {
+                     title: "Read Process Output",
+                     readOnlyHint: true,
+@@ -999,7 +1021,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                         - Timeline of output events
+ 
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(InteractWithProcessArgsSchema),
++                inputSchema: toToolInputSchema(InteractWithProcessArgsSchema),
+                 annotations: {
+                     title: "Send Input to Process",
+                     readOnlyHint: false,
+@@ -1013,7 +1035,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                         Force terminate a running terminal session.
+                         
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(ForceTerminateArgsSchema),
++                inputSchema: toToolInputSchema(ForceTerminateArgsSchema),
+                 annotations: {
+                     title: "Force Terminate Process",
+                     readOnlyHint: false,
+@@ -1037,7 +1059,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                         - Long runtime with blocked status may indicate stuck process
+                         
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(ListSessionsArgsSchema),
++                inputSchema: toToolInputSchema(ListSessionsArgsSchema),
+                 annotations: {
+                     title: "List Terminal Sessions",
+                     readOnlyHint: true,
+@@ -1053,7 +1075,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                         Returns process information including PID, command name, CPU usage, and memory usage.
+                         
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(ListProcessesArgsSchema),
++                inputSchema: toToolInputSchema(ListProcessesArgsSchema),
+                 annotations: {
+                     title: "List Running Processes",
+                     readOnlyHint: true,
+@@ -1066,12 +1088,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                 description: `
+                         Terminate a running process by PID.
+ 
+-                        For a PID that start_process returned, it ends the whole command: the shell and every process the command started, as force_terminate does. Any other PID ends that process only. Sessions started with node:local have a negative PID; stop them with force_terminate.
++                        For a PID that start_process returned, it ends the whole command: the shell and every process the command started, as force_terminate does. ${process.env.LOCAL_DC_REMOTE === '1' ? 'Only active Local DC terminal sessions can be stopped with this tool.' : 'Any other PID ends that process only.'} Sessions started with node:local have a negative PID; stop them with force_terminate.
+ 
+                         Use with caution as this will forcefully terminate the specified process.
+ 
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(KillProcessArgsSchema),
++                inputSchema: toToolInputSchema(KillProcessArgsSchema),
+                 annotations: {
+                     title: "Kill Process",
+                     readOnlyHint: false,
+@@ -1087,7 +1109,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                         Returns summary of tool usage, success/failure rates, and performance metrics.
+                         
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(GetUsageStatsArgsSchema),
++                inputSchema: toToolInputSchema(GetUsageStatsArgsSchema),
+                 annotations: {
+                     title: "Get Usage Statistics",
+                     readOnlyHint: true,
+@@ -1112,7 +1134,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                         are replaced with an omission marker.
+                         
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(GetRecentToolCallsArgsSchema),
++                inputSchema: toToolInputSchema(GetRecentToolCallsArgsSchema),
+                 annotations: {
+                     title: "Get Recent Tool Calls",
+                     readOnlyHint: true,
+@@ -1135,7 +1157,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+                         No input parameters are required.
+                         
+                         ${CMD_PREFIX_DESCRIPTION}`,
+-                inputSchema: zodToJsonSchema(GiveFeedbackArgsSchema),
++                inputSchema: toToolInputSchema(GiveFeedbackArgsSchema),
+                 annotations: {
+                     title: "Give Feedback",
+                     readOnlyHint: false,
+@@ -1146,7 +1168,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
+         ];
+ 
+         // Filter tools based on current client
+-        const filteredTools = allTools.filter(tool => shouldIncludeTool(tool.name));
++        const filteredTools = allTools.filter(tool => localToolEnabled(tool.name) && shouldIncludeTool(tool.name));
+ 
+         // logToStderr('debug', `Returning ${filteredTools.length} tools (filtered from ${allTools.length} total) for client: ${currentClient?.name || 'unknown'}`);
+ 
+@@ -1176,8 +1198,39 @@ function stillLoading(filePath: unknown, action: FileAction, options?: { isPdf?:
+     return error === undefined ? undefined : { content: [{ type: 'text', text: `Error: ${error}` }], isError: true };
+ }
+ 
++// Bound collections before Zod validates tool-specific element schemas.
++function withinLocalToolArgumentBudget(value: unknown): boolean {
++    let remainingItems = 32_768;
++    function check(item: unknown, depth: number): boolean {
++        if (!item || typeof item !== 'object') return true;
++        if (depth >= 32) return false;
++        const children = Array.isArray(item) ? item : Object.values(item);
++        remainingItems -= children.length;
++        return children.length <= 4_096 && remainingItems >= 0 &&
++            children.every(child => check(child, depth + 1));
++    }
++    return check(value, 0);
++}
++
++function withinLocalPdfArgumentBudget(content: unknown): boolean {
++    // write_pdf accepts page operations encoded as JSON text as well as an array.
++    if (typeof content !== 'string' || !content.trimStart().startsWith('[')) return true;
++    try {
++        return withinLocalToolArgumentBudget(JSON.parse(content));
++    } catch {
++        return true; // The PDF tool handles non-JSON Markdown.
++    }
++}
++
+ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest): Promise<ServerResult> => {
+-    const args = request.params.arguments;
++    const { name, arguments: args } = request.params;
++    if (process.env.LOCAL_DC_REMOTE === '1' && (!withinLocalToolArgumentBudget(args) ||
++        (name === 'write_pdf' && !withinLocalPdfArgumentBudget(args?.content)))) {
++        return { content: [{ type: 'text', text: 'Local DC remote tool arguments exceed the collection budget.' }], isError: true };
++    }
++    if (!localToolEnabled(name) || (process.env.LOCAL_DC_ROOT && name === 'read_file' && args?.isUrl)) {
++        return { content: [{ type: 'text', text: 'This operation is disabled by the Local DC profile.' }], isError: true };
++    }
+     // Calls fired programmatically by the widget UIs (file preview, config
+     // editor) carry origin:'ui'. They are real tool executions but not agent
+     // actions, so they must produce zero telemetry: running them inside the
+@@ -1250,7 +1303,7 @@ async function handleCallToolRequest(request: CallToolRequest): Promise<ServerRe
+ 
+ 
+         // Track tool call
+-        trackToolCall(name, args);
++        trackToolCall(name, process.env.LOCAL_DC_ROOT ? undefined : args);
+ 
+         // Using a more structured approach with dedicated handlers
+         // (result is declared above so the finally block can read execution status)
+@@ -1437,7 +1490,7 @@ async function handleCallToolRequest(request: CallToolRequest): Promise<ServerRe
+             'track_ui_event'
+         ];
+ 
+-        if (!EXCLUDED_TOOLS.includes(name)) {
++        if (!process.env.LOCAL_DC_ROOT && !EXCLUDED_TOOLS.includes(name)) {
+             toolHistory.addCall(name, args, result, duration);
+         }
+ 
+@@ -1451,6 +1504,7 @@ async function handleCallToolRequest(request: CallToolRequest): Promise<ServerRe
+             console.log(`[FEEDBACK DEBUG] Tool ${name} failed, not checking feedback`);
+         } else {
+             await usageTracker.trackSuccess(name);
++            if (process.env.LOCAL_DC_ROOT) return result;
+             console.log(`[FEEDBACK DEBUG] Tool ${name} succeeded, checking feedback...`);
+ 
+             // Check if should prompt for feedback (only on successful operations)
+diff --git a/src/tools/filesystem.ts b/src/tools/filesystem.ts
+index ac9f516..c135991 100644
+--- a/src/tools/filesystem.ts
++++ b/src/tools/filesystem.ts
+@@ -110,6 +110,7 @@ function buildPermissionError(filePath: string, errCode: string | undefined): Er
+ 
+ // Initialize allowed directories from configuration
+ async function getAllowedDirs(): Promise<string[]> {
++    if (process.env.LOCAL_DC_ROOT) return [process.env.LOCAL_DC_ROOT];
+     try {
+         let allowedDirectories;
+         const config = await configManager.getConfig();
+@@ -339,6 +340,15 @@ async function isPathAllowed(pathToCheck: string): Promise<boolean> {
+  */
+ export async function validatePath(requestedPath: string, { entry = false }: { entry?: boolean } = {}): Promise<string> {
+     const validationOperation = async (): Promise<string> => {
++        const localRoot = process.env.LOCAL_DC_ROOT;
++        if (localRoot && process.platform === 'win32') {
++            const suffix = requestedPath.replace(/^[a-z]:[\\/]/i, '');
++            if (/^[\\/]{2}|[:<>"|?*\x00-\x1f]/.test(suffix) ||
++                suffix.split(/[\\/]/).some(part => /[ .]$/.test(part) && part !== '.' && part !== '..' ||
++                    /^(con|prn|aux|nul|conin\$|conout\$|(?:com|lpt)[0-9¹²³])(?:\.|$)/i.test(part.split('.')[0].trimEnd()))) {
++                throw new Error('Unsupported Windows path syntax');
++            }
++        }
+         // Expand home directory if present
+         const expandedPath = expandHome(requestedPath);
+ 
+@@ -348,6 +358,9 @@ export async function validatePath(requestedPath: string, { entry = false }: { e
+             : path.resolve(process.cwd(), expandedPath);
+         // Every form of this path an error text may name, so telemetry replaces it whole
+         addToolCallPaths(requestedPath, expandedPath, absoluteOriginal);
++        if (localRoot && !isWithinAllowedDir(normalizePath(absoluteOriginal), localRoot)) {
++            throw new Error('Path outside Local DC authorized directory');
++        }
+ 
+         // SECURITY: Resolve symlinks (and Windows junctions) to where file operations
+         // on this path actually land, and check that location. This covers paths that
+diff --git a/src/tools/pdf/markdown.ts b/src/tools/pdf/markdown.ts
+index ee6cb9d..99600f1 100644
+--- a/src/tools/pdf/markdown.ts
++++ b/src/tools/pdf/markdown.ts
+@@ -784,6 +784,9 @@ export async function parsePdfToMarkdown(source: string, pageNumbers: number[] |
+  * MCP connection - when dest is undefined).
+  */
+ export async function parseMarkdownToPdf(markdown: string, options: any = {}): Promise<Buffer> {
++    if (process.env.LOCAL_DC_ROOT) {
++        throw new Error('Markdown-to-PDF rendering is disabled by the Local DC profile.');
++    }
+     let profile: ChromeProfile | undefined;
+     let server: RenderServer | undefined;
+     let browser: Browser | undefined;
+diff --git a/src/tools/process.ts b/src/tools/process.ts
+index 9cfe6a5..0b66374 100644
+--- a/src/tools/process.ts
++++ b/src/tools/process.ts
+@@ -91,7 +91,15 @@ export async function killProcess(args: unknown): Promise<ServerResult> {
+   if (outcome === 'failed') return terminationFailedResult(pid);
+   try {
+     // Returns once the process is gone, so a success means it no longer runs
+-    if (outcome === 'not_found') await terminatePid(pid);
++    if (outcome === 'not_found') {
++      if (process.env.LOCAL_DC_REMOTE === '1') {
++        return {
++          content: [{ type: "text", text: "Remote kill_process only accepts a PID from an active Local DC terminal session." }],
++          isError: true,
++        };
++      }
++      await terminatePid(pid);
++    }
+     return {
+       content: [{ type: "text", text: `Successfully terminated process ${pid}` }],
+     };
+diff --git a/src/tools/schemas.ts b/src/tools/schemas.ts
+index bbdb466..db9633b 100644
+--- a/src/tools/schemas.ts
++++ b/src/tools/schemas.ts
+@@ -63,7 +63,7 @@ export const ReadFileArgsSchema = z.object({
+   length: z.number().optional().default(1000),
+   sheet: z.string().optional(),  // String only for MCP client compatibility (Cursor doesn't support union types in JSON Schema)
+   range: z.string().optional(),
+-  options: z.record(z.any()).optional(),
++  options: z.record(z.string(), z.any()).optional(),
+   // Whether the call came from the file-preview UI (refresh/navigation) or the
+   // LLM. 'ui' calls are excluded from tool-call telemetry; see isUiOriginCall
+   // in server.ts.
+@@ -101,23 +101,22 @@ export const PdfOperationSchema = z.union([PdfInsertOperationSchema, PdfDeleteOp
+ 
+ export const WritePdfArgsSchema = z.object({
+   path: z.string(),
+-  // Preprocess content to handle JSON strings that should be parsed as arrays
+-  content: z.preprocess(
+-    (val) => {
+-      // If it's a string that looks like JSON array, parse it
+-      if (typeof val === 'string' && val.trim().startsWith('[')) {
+-        try {
+-          return JSON.parse(val);
+-        } catch {
+-          // If parsing fails, return as-is (might be markdown content)
+-          return val;
+-        }
+-      }
+-      // Otherwise return as-is
+-      return val;
+-    },
+-    z.union([z.string(), z.array(PdfOperationSchema)])
+-  ),
++  // Accept both native and JSON-encoded PDF page operations.
++  content: z.union([z.string(), z.array(PdfOperationSchema)]).transform((value, ctx) => {
++    if (typeof value !== 'string' || !value.trimStart().startsWith('[')) return value;
++    let decoded: unknown;
++    try {
++      decoded = JSON.parse(value);
++    } catch {
++      return value; // Plain Markdown beginning with a bracket.
++    }
++    const operations = z.array(PdfOperationSchema).safeParse(decoded);
++    if (operations.success) return operations.data;
++    for (const issue of operations.error.issues) {
++      ctx.addIssue({ code: 'custom', path: issue.path, message: issue.message });
++    }
++    return z.NEVER;
++  }),
+   outputPath: z.string().optional(),
+   options: z.object({}).passthrough().optional(), // Allow passing options to md-to-pdf
+ });
+@@ -157,7 +156,7 @@ export const EditBlockArgsSchema = z.object({
+   // Structured file range rewrite (Excel, etc.)
+   range: z.string().optional(),
+   content: z.any().optional(),
+-  options: z.record(z.any()).optional(),
++  options: z.record(z.string(), z.any()).optional(),
+   // 'ui' when fired by the file-preview UI, else 'llm'. 'ui' calls are
+   // excluded from tool-call telemetry; see isUiOriginCall in server.ts.
+   origin: z.enum(['ui', 'llm']).optional(),
+@@ -240,7 +239,7 @@ export const GetRecentToolCallsArgsSchema = z.object({
+ export const TrackUiEventArgsSchema = z.object({
+   event: z.string().min(1).max(80),
+   component: z.string().optional().default('file_preview'),
+-  params: z.record(z.union([z.string(), z.number(), z.boolean(), z.null()])).optional().default({}),
++  params: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional().default({}),
+ });
+ 
+ /**
+diff --git a/src/utils/feature-flags.ts b/src/utils/feature-flags.ts
+index e530bd7..c1a87a0 100644
+--- a/src/utils/feature-flags.ts
++++ b/src/utils/feature-flags.ts
+@@ -41,6 +41,10 @@ class FeatureFlagManager {
+    * Initialize - load from cache and start background refresh
+    */
+   async initialize(): Promise<void> {
++    if (process.env.LOCAL_DC_ROOT) {
++      this.resolveFreshFetch?.();
++      return;
++    }
+     try {
+       // Load from cache immediately (non-blocking)
+       await this.loadFromCache();
+diff --git a/src/utils/fuzzySearchLogger.ts b/src/utils/fuzzySearchLogger.ts
+index 5dc7379..7c7ca37 100644
+--- a/src/utils/fuzzySearchLogger.ts
++++ b/src/utils/fuzzySearchLogger.ts
+@@ -1,6 +1,7 @@
+ import fs from 'fs/promises';
+ import path from 'path';
+ import os from 'os';
++import { CONFIG_DIR } from '../config.js';
+ 
+ export interface FuzzySearchLogEntry {
+     timestamp: Date;
+@@ -27,7 +28,7 @@ class FuzzySearchLogger {
+ 
+     constructor() {
+         // Create log file in a dedicated directory
+-        const logDir = path.join(os.homedir(), '.claude-server-commander-logs');
++        const logDir = process.env.LOCAL_DC_STATE_DIR ? CONFIG_DIR : path.join(os.homedir(), '.claude-server-commander-logs');
+         this.logPath = path.join(logDir, 'fuzzy-search.log');
+     }
+ 
+diff --git a/src/utils/toolHistory.ts b/src/utils/toolHistory.ts
+index 6c9d548..e52f4ad 100644
+--- a/src/utils/toolHistory.ts
++++ b/src/utils/toolHistory.ts
+@@ -1,7 +1,7 @@
+ import { ServerResult } from '../types.js';
+ import * as fs from 'fs';
+ import * as path from 'path';
+-import * as os from 'os';
++import { CONFIG_DIR } from '../config.js';
+ 
+ export interface ToolCallRecord {
+   timestamp: string;
+@@ -63,7 +63,7 @@ class ToolHistory {
+ 
+   constructor() {
+     // Store history in same directory as config to keep everything together
+-    const historyDir = path.join(os.homedir(), '.claude-server-commander');
++    const historyDir = CONFIG_DIR;
+     
+     // Ensure directory exists
+     if (!fs.existsSync(historyDir)) {
+diff --git a/src/utils/unsupportedParams.ts b/src/utils/unsupportedParams.ts
+index 31ff27e..7ec04dc 100644
+--- a/src/utils/unsupportedParams.ts
++++ b/src/utils/unsupportedParams.ts
+@@ -22,6 +22,7 @@
+ function getObjectShape(schema: any): Record<string, unknown> | null {
+   let current = schema;
+   for (let i = 0; current && current._def && i < 10; i++) {
++    if (current.shape && typeof current.shape === 'object') return current.shape;
+     const typeName = current._def.typeName;
+     if (typeName === 'ZodObject') {
+       const shape = typeof current.shape === 'function' ? current.shape() : current.shape;

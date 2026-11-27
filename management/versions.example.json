@@ -1,0 +1,29 @@
+﻿{
+    "tunnelExecutable":  "transports/openai/bin/tunnel-client.exe",
+    "defaults":  {
+                     "version":  "p6",
+                     "mode":  "files"
+                 },
+    "rollback":  {
+                     "version":  "p6",
+                     "mode":  "files"
+                 },
+    "versions":  [
+                     {
+                         "id":  "p6",
+                         "label":  "Local DC v1.0.0",
+                         "status":  "本地正式版；公开发布待完成",
+                         "directory":  "engine",
+                         "launcher":  "LocalDC.ps1",
+                         "profile":  "profile.local.yaml",
+                         "runtime":  "runtime",
+                         "build":  "upstream/dist/index.js",
+                         "rootConfig":  "allowed-root.txt",
+                         "rootValidator":  "stdio.mjs",
+                         "fixedRoot":  "engine/workspace",
+                         "filesTools":  14,
+                         "terminalTools":  21
+                     }
+                 ],
+    "launchMutex":  "Local\\LocalDC-v020-tunnel"
+}

@@ -1,0 +1,15 @@
+node_modules/
+dist/
+runtime/
+test-runtime/
+workspace/
+logs/
+*.dpapi
+.env*
+api_key.txt
+profile.local.yaml
+allowed-root.txt
+management/versions.json
+transports/openai/bin/
+engine/ripgrep/
+*.bak
