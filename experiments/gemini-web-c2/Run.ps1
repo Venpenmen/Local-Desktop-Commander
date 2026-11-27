@@ -2,6 +2,7 @@
     [ValidateSet('Start','Status','Stop')][string]$Action='Status',
     [ValidatePattern('^[a-f0-9]{32}$')][string]$Id,
     [switch]$Public,
+    [switch]$OAuth,
     [ValidateRange(30,7200)][int]$Seconds=3600
 )
 $ErrorActionPreference='Stop'
@@ -13,7 +14,7 @@ if($Action -eq 'Start'){
     $run=Join-Path $runtime $Id
     if(Test-Path -LiteralPath $run){throw 'Run ID already exists.'}
     $null=New-Item -ItemType Directory -Path $run -Force
-    $mode=if($Public){'public'}else{'local'}
+    $mode=if($OAuth){'oauth'}elseif($Public){'public'}else{'local'}
     $child=Start-Process -FilePath $node -ArgumentList @(('"{0}"' -f $scriptPath),$Id,$mode,$Seconds) -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -PassThru -RedirectStandardError (Join-Path $run 'startup.log')
     $child.Dispose()
 }

@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomUUID, randomBytes } from 'node:crypto';
 import { mkdirSync, appendFileSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
@@ -7,10 +7,11 @@ import { fileURLToPath } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
+import { createProbeOAuth } from './oauth.mjs';
 
 const [id, kind = 'local', ttlText = '3600'] = process.argv.slice(2);
 const ttl = Number(ttlText);
-if (!/^[a-f0-9]{32}$/.test(id) || !['local', 'public'].includes(kind) ||
+if (!/^[a-f0-9]{32}$/.test(id) || !['local', 'public', 'oauth'].includes(kind) ||
     !Number.isInteger(ttl) || ttl < 30 || ttl > 7200) throw new Error('Invalid experiment arguments');
 const runtime = join(dirname(fileURLToPath(import.meta.url)), 'runtime', id);
 mkdirSync(runtime, { recursive: true });
@@ -24,7 +25,7 @@ const limit = 4096;
 let active = 0;
 let credits = 40;
 let refill = Date.now();
-const server = createServer(async (req, res) => {
+async function serveMcp(req, res) {
   const reply = (status, body = {}) => res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }).end(JSON.stringify(body));
   if (req.url !== '/mcp' || req.headers.origin) return reply(req.url === '/mcp' ? 403 : 404);
   if (req.method !== 'POST') return reply(405);
@@ -60,15 +61,15 @@ const server = createServer(async (req, res) => {
     const method = ['initialize', 'notifications/initialized', 'tools/list', 'tools/call', 'ping'].includes(body.method) ? body.method : 'other';
     const source = req.headers['x-ldc-probe-test'] === 'codex' ? 'self-test' :
       req.headers['cf-ray'] ? 'public-unattributed' : 'local-unattributed';
-    log({ kind: 'request', source, method, protocol: /^20\d\d-\d\d-\d\d$/.test(version) ? version : null });
-    mcp = new McpServer({ name: 'LDC Gemini Probe', version: '0.1.0' });
+    log({ kind: 'request', source, authorized: Boolean(req.auth), method, protocol: /^20\d\d-\d\d-\d\d$/.test(version) ? version : null });
+    mcp = new McpServer({ name: kind === 'oauth' ? 'LDC Gemini OAuth Probe' : 'LDC Gemini Probe', version: '0.1.0' });
     mcp.registerTool('ldc_probe', {
       description: 'Echo an experiment challenge and return a fresh random nonce from the server.',
       inputSchema: { challenge: z.string().min(1).max(96).regex(/^[A-Za-z0-9 _.-]+$/) },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     }, async ({ challenge }) => {
       const result = { challenge, nonce: randomUUID(), utc: new Date().toISOString(), callId: randomUUID() };
-      log({ kind: 'result', source, nonce: result.nonce, callId: result.callId,
+      log({ kind: 'result', source, authorized: Boolean(req.auth), nonce: result.nonce, callId: result.callId,
         challengeHash: createHash('sha256').update(challenge).digest('hex') });
       return { content: [{ type: 'text', text: JSON.stringify(result) }], structuredContent: result };
     });
@@ -81,6 +82,12 @@ const server = createServer(async (req, res) => {
   } finally {
     try { await mcp?.close(); } finally { active--; }
   }
+}
+let oauth;
+const server = createServer((req, res) => {
+  if (kind !== 'oauth') return serveMcp(req, res);
+  if (oauth) return oauth(req, res);
+  res.writeHead(503).end();
 });
 server.requestTimeout = 10_000;
 server.headersTimeout = 5_000;
@@ -102,7 +109,7 @@ setTimeout(stop, ttl * 1000).unref();
 server.listen(0, '127.0.0.1', () => {
   state.port = server.address().port;
   save();
-  if (kind !== 'public') return;
+  if (kind === 'local') return;
   const binary = join(runtime, '..', 'cloudflared.exe');
   const env = { SystemRoot: process.env.SystemRoot, WINDIR: process.env.WINDIR,
     USERPROFILE: runtime, HOME: runtime, LOCALAPPDATA: runtime, APPDATA: runtime, TEMP: runtime, TMP: runtime };
@@ -116,6 +123,11 @@ server.listen(0, '127.0.0.1', () => {
     tail = (tail + data.toString()).slice(-4096);
     const match = tail.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com\b/);
     if (match && !state.publicUrl) {
+      if (kind === 'oauth') {
+        const approvalKey = randomBytes(24).toString('base64url');
+        writeFileSync(join(runtime, 'approval-key.txt'), approvalKey, { flag: 'wx' });
+        oauth = createProbeOAuth({ issuer: new URL(match[0]), approvalKey, serveMcp, log });
+      }
       state.publicUrl = match[0] + '/mcp';
       save();
     }
