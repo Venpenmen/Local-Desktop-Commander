@@ -8,17 +8,10 @@ import { InvalidClientMetadataError, InvalidGrantError, InvalidRequestError, Inv
 const googleCallback = /^https:\/\/oauth-redirect(?:-sandbox|-test)?\.googleusercontent\.com\/[ra]\/[A-Za-z0-9._~-]+$/;
 const random = () => randomBytes(32).toString('base64url');
 const now = () => Math.floor(Date.now() / 1000);
-export function createProbeOAuth({ issuer, publishApproval, takeApproval, serveMcp, log, getManualClient = () => undefined, tokenSeconds = 600 }) {
+export function createProbeOAuth({ issuer, takePreapproval, serveMcp, log, getManualClient = () => undefined, tokenSeconds = 600 }) {
   const resource = new URL('/mcp', issuer);
   const clients = new Map();
-  const pending = new Map();
   const codes = new Map();
-  function waitPage(res, ticket) {
-    const path = '/approval/' + ticket;
-    return res.type('html').send('<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="2;url=' + path +
-      '"><title>Waiting for local approval</title><h1>Waiting for local approval</h1><p>Transaction <code>' +
-      ticket + '</code></p><p>Copy the transaction to your local operator. This page updates automatically.</p>');
-  }
   const tokens = new Map();
   const refreshGrants = new Map();
   const get = (map, key) => {
@@ -71,12 +64,17 @@ export function createProbeOAuth({ issuer, publishApproval, takeApproval, serveM
       const manual = getManualClient();
       if (!manual?.client_secret || manual.client_id !== client.client_id ||
           !manual.redirect_uris.includes(params.redirectUri)) throw new InvalidRequestError('Use the locally registered client');
-      const ticket = random();
-      const grant = { ...params, clientId: client.client_id, expiresAt: now() + 180 };
-      add(pending, ticket, grant);
-      publishApproval({ ticket, clientId: grant.clientId, redirectUri: grant.redirectUri, expiresAt: grant.expiresAt });
-      log({ kind: 'oauth', event: 'local-approval-requested' });
-      waitPage(res, ticket);
+      if (!takePreapproval(client.client_id, params.redirectUri)) {
+        log({ kind: 'oauth', event: 'preapproval-missing-expired-or-used' });
+        return res.status(403).type('text').send('Local approval is unavailable. Start a new authorization after the operator arms it.');
+      }
+      const code = random();
+      add(codes, code, { ...params, clientId: client.client_id, expiresAt: now() + 60 });
+      const redirect = new URL(params.redirectUri);
+      redirect.searchParams.set('code', code);
+      if (params.state !== undefined) redirect.searchParams.set('state', params.state);
+      log({ kind: 'oauth', event: 'preapproval-consumed' });
+      res.redirect(303, redirect.href);
     },
     async challengeForAuthorizationCode(client, code) {
       return findCode(client, code).codeChallenge;
@@ -130,33 +128,6 @@ export function createProbeOAuth({ issuer, publishApproval, takeApproval, serveM
     if (req.url.length > 4096 || (req.path !== '/mcp' &&
         Number(req.headers['content-length']) > 4096)) return res.sendStatus(413);
     next();
-  });
-  app.get('/approval/:ticket', (req, res) => {
-    const ticket = req.params.ticket;
-    if (!/^[A-Za-z0-9_-]{43}$/.test(ticket)) return res.sendStatus(404);
-    const grant = get(pending, ticket);
-    if (!grant) return res.status(410).type('text').send('Approval expired or already completed. Start again from Gemini.');
-    const manual = getManualClient();
-    if (manual?.client_id !== grant.clientId || !manual.redirect_uris.includes(grant.redirectUri)) {
-      pending.delete(ticket);
-      return res.sendStatus(403);
-    }
-    const approval = takeApproval(ticket);
-    if (!approval) return waitPage(res, ticket);
-    if (approval.ticket !== ticket || approval.clientId !== grant.clientId || approval.redirectUri !== grant.redirectUri ||
-        !Number.isInteger(approval.expiresAt) || approval.expiresAt <= now() || approval.expiresAt > grant.expiresAt) {
-      log({ kind: 'oauth', event: 'local-approval-rejected', reason: 'binding-or-expiry' });
-      return res.sendStatus(403);
-    }
-    pending.delete(ticket);
-    const code = random();
-    try { add(codes, code, { ...grant, expiresAt: now() + 60 }); }
-    catch { return res.sendStatus(429); }
-    const redirect = new URL(grant.redirectUri);
-    redirect.searchParams.set('code', code);
-    if (grant.state !== undefined) redirect.searchParams.set('state', grant.state);
-    log({ kind: 'oauth', event: 'local-approval-consumed' });
-    return res.redirect(303, redirect.href);
   });
   const authRouter = mcpAuthRouter({ provider, issuerUrl: issuer, resourceServerUrl: resource,
     scopesSupported: ['probe'], resourceName: 'LDC Gemini OAuth Probe', clientRegistrationOptions: { clientSecretExpirySeconds: 7200 } });

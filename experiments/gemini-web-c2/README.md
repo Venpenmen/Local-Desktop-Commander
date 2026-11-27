@@ -8,10 +8,10 @@
 
 ## OAuth 探针实验
 
-使用 Start -OAuth -Seconds 7200 创建隔离的临时 HTTPS 实验。用 AddClient 登记 Gemini 界面显示的精确回调。浏览器授权页显示短期事务编号并自动检查状态。由操作者在本机运行 Run.ps1 Approve -Id <实验ID> -Transaction <事务号>，确认具体事务。单次批准绑定事务、当前手动客户端及已登记回调，并在 45 秒内且原事务尚未过期时有效。网页不采集批准码。SDK 校验 S256 PKCE。令牌只允许 probe 权限，绑定资源 URL，访问令牌最长十分钟；刷新授权最长三十分钟，仅绑定当前手动客户端及探针权限，撤销时整组失效。待批准请求、授权码和令牌的权威状态保存在当前进程内存。临时域名随实例变化。
+使用 Start -OAuth -Seconds 7200 创建隔离的临时 HTTPS 实验。用 AddClient 登记 Gemini 界面显示的精确回调。操作者在本机运行 Run.ps1 Arm -Id <实验ID>，允许接下来五分钟内仅一次匹配手动客户端和精确回调的探针授权。授权请求通过客户端、精确回调和 S256 参数校验后，原子消费本机许可，并签发绑定该 OAuth 事务的一次性授权码。SDK 验证 S256 PKCE。访问令牌最长十分钟；刷新授权最长三十分钟，仅绑定当前手动客户端及探针权限，撤销时整组失效。临时域名随实例变化。
 
 运行 node --test oauth.test.mjs 验证本地安全边界。公网测试设置 LDC_C2_OAUTH_URL 和 LDC_C2_RUN 后执行同一脚本。HTTPS 诊断需要现有代理时，仅在测试进程设置 LDC_C2_TEST_PROXY。OAuth 探针阶段仅允许无副作用的随机回执工具。
 
 若平台要求手动注册，在运行中的 OAuth 实验使用 Run.ps1 AddClient -Id <实验ID> -RedirectUri <Gemini 显示的精确地址>。凭据生成在本机受保护的 manual-client.json。切换实验地址后需重新核对 Gemini 显示的回调。诊断日志记录 OAuth 路由、HTTP 状态及注册认证方式，不保存原始查询、请求体或密钥。
 
-使用 node --test consent-browser.test.mjs 在 Edge 无头浏览器验证无表单页面在收到本机批准前保持等待，并在批准后跳转。诊断记录原因分类，不保存表单字段值、来源地址或批准码。
+使用 node --test consent-browser.test.mjs 在 Edge 无头浏览器验证预批准前拒绝、批准后直接跳转和重复授权拒绝。诊断记录原因分类，不保存表单字段值、来源地址或批准码。

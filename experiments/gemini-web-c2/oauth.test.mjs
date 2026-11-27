@@ -20,12 +20,15 @@ test('OAuth metadata, exact redirect, consent, PKCE, audience, expiry and revoca
   const redirect = 'https://oauth-redirect.googleusercontent.com/r/ldc-c2-self-test';
   const manual = external ? JSON.parse(await readFile(new URL('manual-client.json', dir), 'utf8')) :
     { client_id: 'test-manual', client_secret: 'test-secret', redirect_uris: [redirect] };
-  const requests = new Map();
-  const grants = new Map();
+  let armed = false;
   const issuer = new URL(external || 'https://example.test');
   const internal = !external && createServer(createProbeOAuth({
-    issuer, getManualClient: () => manual, publishApproval: request => requests.set(request.ticket, request),
-    takeApproval: ticket => { const grant = grants.get(ticket); grants.delete(ticket); return grant; },
+    issuer, getManualClient: () => manual,
+    takePreapproval: (id, callback) => {
+      if (!armed || id !== manual.client_id || callback !== redirect) return false;
+      armed = false;
+      return true;
+    },
     serveMcp: (_req, res) => res.sendStatus(204), log: () => {}, tokenSeconds: 2,
   }));
   if (internal) {
@@ -80,33 +83,18 @@ test('OAuth metadata, exact redirect, consent, PKCE, audience, expiry and revoca
     assert.equal((await authorize({ redirect_uri: actualRedirect + '-different' })).status, 400);
     assert.match((await authorize({ scope: 'files.read' })).headers.get('location'), /invalid_scope/);
     assert.match((await authorize({ code_challenge_method: 'plain' })).headers.get('location'), /invalid_request/);
-    async function ticket() {
-      const response = await authorize();
-      assert.equal(response.status, 200);
-      const ticket = (await response.text()).match(/\/approval\/([A-Za-z0-9_-]{43})/)?.[1];
-      assert(ticket);
-      return ticket;
-    }
-    const transaction = await ticket();
-    const path = '/approval/' + transaction;
-    const waiting = await request(path);
-    assert.equal(waiting.status, 200);
-    assert.equal(waiting.headers.get('location'), null);
-    assert.equal((await form('/consent', { ticket: transaction })).status, 404);
+    assert.equal((await authorize()).status, 403);
+    assert.equal((await form('/consent', {})).status, 404);
     if (external) {
       execFileSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
-        fileURLToPath(new URL('Run.ps1', import.meta.url)), 'Approve', '-Id', run, '-Transaction', transaction], { windowsHide: true });
+        fileURLToPath(new URL('Run.ps1', import.meta.url)), 'Arm', '-Id', run], { windowsHide: true });
     } else {
-      for (const incorrect of [{ clientId: 'wrong' }, { expiresAt: 1 }]) {
-        const separate = await ticket();
-        grants.set(separate, { ...requests.get(separate), ...incorrect });
-        assert.equal((await request('/approval/' + separate)).status, 403);
-      }
-      grants.set(transaction, requests.get(transaction));
+      armed = true;
     }
-    const accepted = await request(path);
+    assert.equal((await authorize({ redirect_uri: actualRedirect + '-different' })).status, 400);
+    const accepted = await authorize();
     assert.equal(accepted.status, 303);
-    assert.equal((await request(path)).status, 410);
+    assert.equal((await authorize()).status, 403);
     const callback = new URL(accepted.headers.get('location'));
     assert.equal(callback.searchParams.get('state'), 'test-state');
     const code = callback.searchParams.get('code');
@@ -150,7 +138,7 @@ test('OAuth metadata, exact redirect, consent, PKCE, audience, expiry and revoca
     assert.equal((await request('/mcp', { headers: auth })).status, 401);
     assert.equal((await form('/token', tokenGrant)).status, 400);
     checks.push('metadata', 'uncredentialed and invalid bearer rejection', 'registration and exact redirect',
-      'local approval binding, one-time consumption and S256 PKCE', 'wrong target and scope rejection', 'one-use authorization code', 'bounded refresh grant',
+      'preapproval binding, one-time consumption and S256 PKCE', 'wrong target and scope rejection', 'one-use authorization code', 'bounded refresh grant',
       external ? 'protected live MCP call and token revocation' : 'token expiry');
   } finally {
     await client?.close();

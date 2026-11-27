@@ -124,24 +124,20 @@ server.listen(0, '127.0.0.1', () => {
     const match = tail.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com\b/);
     if (match && !state.publicUrl) {
       if (kind === 'oauth') {
-        const requests = join(runtime, 'approval-requests');
-        const grants = join(runtime, 'approval-grants');
-        mkdirSync(requests, { recursive: true });
-        mkdirSync(grants, { recursive: true });
         const read = path => JSON.parse(readFileSync(path, 'utf8').replace(/^\uFEFF/, ''));
         oauth = createProbeOAuth({ issuer: new URL(match[0]), serveMcp, log,
           getManualClient: () => {
             try { return read(join(runtime, 'manual-client.json')); } catch { return undefined; }
           },
-          publishApproval: request => writeFileSync(join(requests, request.ticket + '.json'), JSON.stringify(request), { flag: 'wx' }),
-          takeApproval: ticket => {
-            const path = join(grants, ticket + '.json');
+          takePreapproval: (clientId, redirectUri) => {
+            const path = join(runtime, 'preapproval.json');
             try {
               const approval = read(path);
+              if (approval.clientId !== clientId || approval.redirectUri !== redirectUri ||
+                  !Number.isInteger(approval.expiresAt) || approval.expiresAt <= Math.floor(Date.now() / 1000)) return false;
               unlinkSync(path);
-              try { unlinkSync(join(requests, ticket + '.json')); } catch {}
-              return approval;
-            } catch { return undefined; }
+              return true;
+            } catch { return false; }
           },
         });
       }
