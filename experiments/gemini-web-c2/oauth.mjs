@@ -62,7 +62,9 @@ export function createProbeOAuth({ issuer, approvalKey, serveMcp, log, getManual
       if (!/^[A-Za-z0-9_-]{43}$/.test(params.codeChallenge)) throw new InvalidRequestError('Expected an S256 challenge');
       const ticket = random();
       add(pending, ticket, { ...params, clientId: client.client_id, expiresAt: now() + 300 });
-      res.type('html').send('<!doctype html><meta charset="utf-8"><title>Authorize LDC Gemini Probe</title>' +
+      // Chromium uses Origin: null for form POSTs initiated by a no-referrer page.
+      // Send only the document origin, never the authorization query or ticket.
+      res.set('Referrer-Policy', 'origin').type('html').send('<!doctype html><meta charset="utf-8"><title>Authorize LDC Gemini Probe</title>' +
         '<h1>Authorize LDC Gemini Probe</h1><p>Allow this connection to call the read-only random nonce probe.</p>' +
         '<form method="post" action="/consent"><input type="hidden" name="ticket" value="' + ticket +
         '"><label>Local approval key <input name="approval" type="password" required autocomplete="off"></label>' +
@@ -113,11 +115,22 @@ export function createProbeOAuth({ issuer, approvalKey, serveMcp, log, getManual
     next();
   });
   app.post('/consent', express.urlencoded({ extended: false, limit: '2kb' }), (req, res) => {
-    const grant = get(pending, req.body?.ticket);
-    if (!grant || (req.headers.origin && req.headers.origin !== issuer.origin)) return res.sendStatus(400);
+    const origin = req.headers.origin;
+    const originKind = origin === issuer.origin ? 'same-origin' : origin === 'null' ? 'opaque' : origin ? 'other' : 'absent';
+    const reject = (status, reason) => {
+      log({ kind: 'oauth', event: 'consent-rejected', status, reason, origin: originKind,
+        form: Boolean(req.is('application/x-www-form-urlencoded')) });
+      return res.sendStatus(status);
+    };
+    if (!req.is('application/x-www-form-urlencoded')) return reject(400, 'unsupported-form');
+    if (typeof req.body?.ticket !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(req.body.ticket)) return reject(400, 'missing-or-invalid-ticket');
+    if (origin && origin !== issuer.origin) return reject(400, 'origin-mismatch');
+    const entry = pending.get(req.body.ticket);
+    const grant = get(pending, req.body.ticket);
+    if (!grant) return reject(400, entry ? 'expired-ticket' : 'unknown-or-consumed-ticket');
     if (!equal(req.body.approval, approvalKey)) {
       pending.delete(req.body.ticket);
-      return res.sendStatus(403);
+      return reject(403, 'approval-rejected');
     }
     pending.delete(req.body.ticket);
     const code = random();
@@ -164,6 +177,13 @@ export function createProbeOAuth({ issuer, approvalKey, serveMcp, log, getManual
   app.all('/mcp', requireBearerAuth({ verifier: provider, requiredScopes: ['probe'],
     expectedResource: resource, resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(resource) }), serveMcp);
   app.use((_req, res) => res.sendStatus(404));
-  app.use((_error, _req, res, _next) => res.sendStatus(400));
+  app.use((error, req, res, _next) => {
+    if (req.path === '/consent') {
+      const reason = ['entity.too.large', 'entity.parse.failed', 'request.aborted', 'encoding.unsupported'].includes(error.type)
+        ? error.type : 'body-parser-error';
+      log({ kind: 'oauth', event: 'consent-rejected', status: 400, reason });
+    }
+    res.sendStatus(400);
+  });
   return app;
 }

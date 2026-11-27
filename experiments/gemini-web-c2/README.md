@@ -13,3 +13,5 @@
 运行 node --test oauth.test.mjs 验证本地安全边界。公网测试设置 LDC_C2_OAUTH_URL 和 LDC_C2_RUN 后执行同一脚本。HTTPS 诊断需要现有代理时，仅在测试进程设置 LDC_C2_TEST_PROXY。OAuth 探针阶段仅允许无副作用的随机回执工具。
 
 若平台要求手动注册，在运行中的 OAuth 实验使用 Run.ps1 AddClient -Id <实验ID> -RedirectUri <Gemini 显示的精确地址>。凭据生成在本机受保护的 manual-client.json。切换实验地址后需重新核对 Gemini 显示的回调。诊断日志记录 OAuth 路由、HTTP 状态及注册认证方式，不保存原始查询、请求体或密钥。
+
+使用 node --test consent-browser.test.mjs 在 Edge 无头浏览器验证真实表单提交。试验端点的定向回归设置 LDC_C2_BROWSER_URL 和 LDC_C2_RUN。诊断记录原因分类，不保存表单字段值、来源地址或批准码。
