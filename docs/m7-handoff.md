@@ -11,3 +11,7 @@ Start from `feature/management-gui`. Bind actual and target state separately. Us
 Start from `feature/gemini-web`. First verify the web client's actual integration, authentication, supported transports and security model. Reuse MCP stdio and the public descriptor and settings contracts. Keep connectivity and credentials in a dedicated adapter. Start with an isolated fixture. No Gemini connection is implemented by M7-A.
 
 Both development lines use separate loopback instances. Follow [instance isolation](instance-isolation.md) for setup, verification and shared changes.
+
+
+## Local checkpoints and shared rules
+Read AGENTS.md first. STATE.md and TASKS.md are per-worktree local records, intentionally excluded from public Git; initialize missing copies from the actual branch, current evidence and the relevant GUI/Gemini handoff. Never copy another branch's progress as verified. Keep local snapshots current at every meaningful checkpoint. Shared ROADMAP and CHANGELOG are maintained through develop. New feature worktrees must receive their own checkpoint files before development.
