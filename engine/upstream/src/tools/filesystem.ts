@@ -110,7 +110,7 @@ function buildPermissionError(filePath: string, errCode: string | undefined): Er
 
 // Initialize allowed directories from configuration
 async function getAllowedDirs(): Promise<string[]> {
-    if (process.env.LOCAL_DC_ROOT) return [process.env.LOCAL_DC_ROOT];
+    if (process.env.LOCAL_DC_ROOT) return process.env.LOCAL_DC_FILE_ACCESS === 'full' ? [] : [process.env.LOCAL_DC_ROOT];
     try {
         let allowedDirectories;
         const config = await configManager.getConfig();
@@ -338,12 +338,13 @@ async function isPathAllowed(pathToCheck: string): Promise<boolean> {
  * @returns Promise<string> The validated path
  * @throws Error if the path or its parent directories don't exist or if the path is not allowed
  */
-export async function validatePath(requestedPath: string, { entry = false }: { entry?: boolean } = {}): Promise<string> {
+export async function validatePath(requestedPath: string, { entry = false, write = false }: { entry?: boolean; write?: boolean } = {}): Promise<string> {
     const validationOperation = async (): Promise<string> => {
         const localRoot = process.env.LOCAL_DC_ROOT;
+        const restrictedRoot = process.env.LOCAL_DC_FILE_ACCESS === 'full' ? undefined : localRoot;
         if (localRoot && process.platform === 'win32') {
             const suffix = requestedPath.replace(/^[a-z]:[\\/]/i, '');
-            if (/^[\\/]{2}|[:<>"|?*\x00-\x1f]/.test(suffix) ||
+            if (/^[\\/]/.test(suffix) || /[:<>"|?*\x00-\x1f]/.test(suffix) ||
                 suffix.split(/[\\/]/).some(part => /[ .]$/.test(part) && part !== '.' && part !== '..' ||
                     /^(con|prn|aux|nul|conin\$|conout\$|(?:com|lpt)[0-9¹²³])(?:\.|$)/i.test(part.split('.')[0].trimEnd()))) {
                 throw new Error('Unsupported Windows path syntax');
@@ -358,7 +359,15 @@ export async function validatePath(requestedPath: string, { entry = false }: { e
             : path.resolve(process.cwd(), expandedPath);
         // Every form of this path an error text may name, so telemetry replaces it whole
         addToolCallPaths(requestedPath, expandedPath, absoluteOriginal);
-        if (localRoot && !isWithinAllowedDir(normalizePath(absoluteOriginal), localRoot)) {
+        const assertLocalDrive = (value: string) => {
+            if (!localRoot || process.platform !== 'win32') return;
+            const drive = /^([a-z]):[\\/]/i.exec(value)?.[1]?.toUpperCase();
+            if (!drive || (process.env.LOCAL_DC_DRIVES !== undefined && !process.env.LOCAL_DC_DRIVES.includes(drive))) {
+                throw new Error('Only local Windows drive paths are supported');
+            }
+        };
+        assertLocalDrive(absoluteOriginal);
+        if (restrictedRoot && !isWithinAllowedDir(normalizePath(absoluteOriginal), restrictedRoot)) {
             throw new Error('Path outside Local DC authorized directory');
         }
 
@@ -380,6 +389,43 @@ export async function validatePath(requestedPath: string, { entry = false }: { e
                 path: absoluteOriginal
             });
             throw new Error(`Failed to resolve symlink for path: ${absoluteOriginal}. Error: ${err.message}`);
+        }
+        assertLocalDrive(pathForNextCheck);
+        const install = process.env.LOCAL_DC_INSTALL;
+        if (localRoot && (write || entry) && install) {
+            const workspace = path.join(install, 'engine', 'workspace');
+            for (const candidate of [absoluteOriginal, pathForNextCheck]) {
+                const normalized = normalizePath(candidate);
+                if ((isWithinAllowedDir(normalized, install) && !isWithinAllowedDir(normalized, workspace)) ||
+                    (entry && isWithinAllowedDir(normalizePath(install), normalized))) {
+                    throw new Error('Local DC installation files cannot be changed using MCP file tools');
+                }
+            }
+            if (write && !entry) {
+                const stats = await fs.stat(pathForNextCheck).catch(error => {
+                    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+                    return undefined;
+                });
+                if (stats?.isFile() && stats.nlink > 1) throw new Error('Local DC does not write through hard-linked files');
+            }
+        }
+        if (restrictedRoot && process.platform === 'win32') {
+            // The entry parent or target has been resolved to filesystem casing.
+            // Keep case significant here for Windows directories configured as case-sensitive.
+            const driveCase = (value: string) => value[0].toUpperCase() + value.slice(1);
+            const base = driveCase(path.normalize(restrictedRoot));
+            const resolved = driveCase(path.normalize(pathForNextCheck));
+            const prefix = base.endsWith(path.sep) ? base : base + path.sep;
+            if (resolved !== base && !resolved.startsWith(prefix)) {
+                throw new Error('Path outside Local DC authorized directory');
+            }
+        }
+        if (restrictedRoot && entry) {
+            const target = await resolveRealPath(absoluteOriginal);
+            assertLocalDrive(target);
+            if (!isWithinAllowedDir(normalizePath(target), restrictedRoot)) {
+                throw new Error('Path outside Local DC authorized directory');
+            }
         }
         addToolCallPaths(pathForNextCheck);
 
@@ -729,7 +775,7 @@ export async function readFileInternal(filePath: string, offset: number = 0, len
 }
 
 export async function writeFile(filePath: string, content: string, mode: 'rewrite' | 'append' = 'rewrite'): Promise<void> {
-    const validPath = await validatePath(filePath);
+    const validPath = await validatePath(filePath, { write: true });
 
     // Get file extension for telemetry
     const fileExtension = getFileExtension(validPath);
@@ -815,7 +861,7 @@ export async function readMultipleFiles(paths: string[], stillLoadingError?: (fi
 }
 
 export async function createDirectory(dirPath: string): Promise<void> {
-    const validPath = await validatePath(dirPath);
+    const validPath = await validatePath(dirPath, { write: true });
     await fs.mkdir(validPath, { recursive: true });
 }
 
@@ -862,7 +908,7 @@ export async function listDirectory(dirPath: string, depth: number = 2): Promise
             // A link (a junction on Windows) to a folder is a folder. A link whose
             // target can't be read stays a [FILE], as every link was before.
             const isDirectory = entry.isDirectory()
-                || (entry.isSymbolicLink() && await fs.stat(fullPath).then((stats) => stats.isDirectory(), () => false));
+                || (entry.isSymbolicLink() && await validatePath(fullPath).then(checked => fs.stat(checked)).then((stats) => stats.isDirectory(), () => false));
 
             // Add this entry to results
             results.push(`${isDirectory ? "[DIR]" : "[FILE]"} ${displayPath}`);
@@ -1109,7 +1155,7 @@ export async function validatePdfOperationPaths(
     outputPath?: string
 ): Promise<string> {
     // Use outputPath if provided, otherwise overwrite input file
-    const targetPath = outputPath ? await validatePath(outputPath) : validPath;
+    const targetPath = await validatePath(outputPath || validPath, { write: true });
 
     // Validate paths in operations
     for (const o of operations) {
@@ -1150,7 +1196,7 @@ export async function writePdf(
 
         const pdfBuffer = await parseMarkdownToPdf(content, options);
         // Use outputPath if provided, otherwise overwrite input file
-        const targetPath = outputPath ? await validatePath(outputPath) : validPath;
+        const targetPath = await validatePath(outputPath || validPath, { write: true });
         await fs.writeFile(targetPath, pdfBuffer);
         // The render succeeded; report which of the caller's/front matter's options were ignored
         return resolveRender(content, options).ignoredOptions;

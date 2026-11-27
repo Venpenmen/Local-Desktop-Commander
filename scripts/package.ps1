@@ -6,7 +6,7 @@ if(Test-Path -LiteralPath $zip){throw 'Output already exists'}
 foreach($file in 'engine/upstream/dist/index.js','engine/upstream/node_modules/@modelcontextprotocol/sdk/package.json','transports/openai/bin/tunnel-client.exe','README.md','README.zh-CN.md','LICENSE'){
  if(!(Test-Path -LiteralPath (Join-Path $root $file) -PathType Leaf)){throw "Missing payload item: $file"}
 }
-foreach($file in 'engine/profile.local.yaml','engine/allowed-root.txt','engine/runtime','engine/test-runtime','management/runtime','logs'){
+foreach($file in 'engine/profile.local.yaml','engine/allowed-root.txt','engine/access-mode.txt','engine/runtime','engine/test-runtime','management/runtime','logs'){
  if(Test-Path -LiteralPath (Join-Path $root $file)){throw "Local data in payload: $file"}
 }
 tar.exe -a -cf $zip --exclude './engine/upstream/node_modules' -C $root .

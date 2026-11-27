@@ -143,10 +143,12 @@ try {
         try {
             const junction = path.join(fixture, 'root-link');
             await fs.symlink(narrowed, junction, 'junction');
-            for (const invalid of ['', 'relative', 'D:\\', narrowed + '\n' + fixture, junction]) {
+            for (const invalid of ['', 'relative', narrowed + '\n' + fixture, junction]) {
                 await fs.writeFile(configFile, invalid);
                 assert.throws(probe);
             }
+            await fs.writeFile(configFile, path.parse(fixture).root);
+            assert.equal(probe(), path.parse(fixture).root);
             await fs.writeFile(configFile, narrowed + '\n');
             assert.equal(probe(), narrowed);
             client = await connect(new StdioClientTransport({

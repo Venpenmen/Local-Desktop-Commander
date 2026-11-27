@@ -115,7 +115,7 @@ function Show-LdcDashboard {
                 Write-LdcDashboardLine 8 "最近刷新：$last  |  每 3 秒检测  |  F5 立即刷新" $w DarkGray
                 Write-LdcDashboardLine 9 $sep $w DarkGray
                 Write-LdcDashboardLine 10 ' 1 启动服务       2 停止服务       3 重启服务' $w $fg
-                Write-LdcDashboardLine 11 ' 4 切换模式       5 切换版本       6 授权目录' $w $fg
+                Write-LdcDashboardLine 11 ' 4 切换模式       5 切换版本       6 文件访问权限' $w $fg
                 Write-LdcDashboardLine 12 ' 7 详细状态       8 运行日志       9 回滚版本' $w $fg
                 Write-LdcDashboardLine 13 '11 网络设置      12 保存密钥      13 清除密钥' $w $fg
                 Write-LdcDashboardLine 14 '14 网络诊断      10 退出控制台' $w $fg

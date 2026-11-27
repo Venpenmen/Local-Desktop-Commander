@@ -31,3 +31,9 @@ On `BUSY`, wait and refresh before deciding to retry. `OPERATION_FAILED` is inte
 Credential configuration and deletion remain interactive console operations using the existing DPAPI path. The API exposes only whether a credential is configured. Launch may open a separate console for the existing credential flow. Management is local and intended for same-user clients under the same Windows logon session. The per-deployment mutex coordinates service changes. The existing OpenAI launch mutex provides an additional transport guard. Use a disposable profile, runtime, and LOCALAPPDATA for development. Avoid sharing the production key, proxy settings, profile or tunnel binary with fixtures.
 
 Discover the deployment with state.instance. Clients can send the returned instance key in the optional request field instance. See [instance isolation](instance-isolation.md).
+
+## File access mode
+
+State adds configuration.accessModes keyed by version ID and fileAccess with actual, target and restartRequired fields. The observed access policy is null until a current engine process reports it. Target includes mode and the retained restricted allowedRoot. The engine reports its policy independently of the tool mode.
+
+Send an access.set request with arguments version, mode (restricted or full), confirmed: true and the current revision. Full requires explicit local acknowledgment. Stop the target instance before changing access or the root, then start it again. Configuration revisions include accessModes. INVALID_ROOT identifies a rejected root, INVALID_ACCESS_MODE identifies a malformed mode, ACCESS_BUSY requires stopping the target and ACCESS_UNAVAILABLE identifies an unsupported instance. See [file access](file-access.md).

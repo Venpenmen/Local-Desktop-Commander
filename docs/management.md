@@ -7,3 +7,4 @@ Use an existing authorized Secure MCP Tunnel. Configure its ID with scripts/conf
 1 Start / 启动 · 2 Stop / 停止 · 3 Restart / 重启 · 4 Mode / 模式 · 5 Version / 版本 · 6 Authorized folder / 授权目录 · 7 Status / 状态 · 8 Logs / 日志 · 9 Rollback / 回滚 · 10 Exit / 退出 · 11 Network / 网络 · 12 Save key / 保存密钥 · 13 Forget key / 清除密钥 · 14 Diagnose / 诊断
 
 The console and [JSON CLI](management-api.md) share lifecycle operations, settings, and process ownership checks. Diagnostic URLs report the tunnel's sampled local status.
+操作 6 管理文件权限和受限根。先停止目标实例，保存后下次启动生效。参见 [文件访问权限](file-access.md)。
