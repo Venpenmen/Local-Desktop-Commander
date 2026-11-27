@@ -1,0 +1,86 @@
+diff --git a/engine/upstream/src/tools/edit.ts b/engine/upstream/src/tools/edit.ts
+index 61810f5..331a3e5 100644
+--- a/engine/upstream/src/tools/edit.ts
++++ b/engine/upstream/src/tools/edit.ts
+@@ -433 +433 @@ export async function handleEditBlock(args: unknown): Promise<ServerResult> {
+-        validatedPath = await validatePath(parsed.file_path);
++        validatedPath = await validatePath(parsed.file_path, { write: true });
+diff --git a/engine/upstream/src/tools/filesystem.ts b/engine/upstream/src/tools/filesystem.ts
+index c135991..f64d554 100644
+--- a/engine/upstream/src/tools/filesystem.ts
++++ b/engine/upstream/src/tools/filesystem.ts
+@@ -113 +113 @@ async function getAllowedDirs(): Promise<string[]> {
+-    if (process.env.LOCAL_DC_ROOT) return [process.env.LOCAL_DC_ROOT];
++    if (process.env.LOCAL_DC_ROOT) return process.env.LOCAL_DC_FILE_ACCESS === 'full' ? [] : [process.env.LOCAL_DC_ROOT];
+@@ -341 +341 @@ async function isPathAllowed(pathToCheck: string): Promise<boolean> {
+-export async function validatePath(requestedPath: string, { entry = false }: { entry?: boolean } = {}): Promise<string> {
++export async function validatePath(requestedPath: string, { entry = false, write = false }: { entry?: boolean; write?: boolean } = {}): Promise<string> {
+@@ -343,0 +344 @@ export async function validatePath(requestedPath: string, { entry = false }: { e
++        const restrictedRoot = process.env.LOCAL_DC_FILE_ACCESS === 'full' ? undefined : localRoot;
+@@ -346 +347 @@ export async function validatePath(requestedPath: string, { entry = false }: { e
+-            if (/^[\\/]{2}|[:<>"|?*\x00-\x1f]/.test(suffix) ||
++            if (/^[\\/]/.test(suffix) || /[:<>"|?*\x00-\x1f]/.test(suffix) ||
+@@ -361 +362,9 @@ export async function validatePath(requestedPath: string, { entry = false }: { e
+-        if (localRoot && !isWithinAllowedDir(normalizePath(absoluteOriginal), localRoot)) {
++        const assertLocalDrive = (value: string) => {
++            if (!localRoot || process.platform !== 'win32') return;
++            const drive = /^([a-z]):[\\/]/i.exec(value)?.[1]?.toUpperCase();
++            if (!drive || (process.env.LOCAL_DC_DRIVES !== undefined && !process.env.LOCAL_DC_DRIVES.includes(drive))) {
++                throw new Error('Only local Windows drive paths are supported');
++            }
++        };
++        assertLocalDrive(absoluteOriginal);
++        if (restrictedRoot && !isWithinAllowedDir(normalizePath(absoluteOriginal), restrictedRoot)) {
+@@ -383,0 +393,37 @@ export async function validatePath(requestedPath: string, { entry = false }: { e
++        assertLocalDrive(pathForNextCheck);
++        const install = process.env.LOCAL_DC_INSTALL;
++        if (localRoot && (write || entry) && install) {
++            const workspace = path.join(install, 'engine', 'workspace');
++            for (const candidate of [absoluteOriginal, pathForNextCheck]) {
++                const normalized = normalizePath(candidate);
++                if ((isWithinAllowedDir(normalized, install) && !isWithinAllowedDir(normalized, workspace)) ||
++                    (entry && isWithinAllowedDir(normalizePath(install), normalized))) {
++                    throw new Error('Local DC installation files cannot be changed using MCP file tools');
++                }
++            }
++            if (write && !entry) {
++                const stats = await fs.stat(pathForNextCheck).catch(error => {
++                    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
++                    return undefined;
++                });
++                if (stats?.isFile() && stats.nlink > 1) throw new Error('Local DC does not write through hard-linked files');
++            }
++        }
++        if (restrictedRoot && process.platform === 'win32') {
++            // The entry parent or target has been resolved to filesystem casing.
++            // Keep case significant here for Windows directories configured as case-sensitive.
++            const driveCase = (value: string) => value[0].toUpperCase() + value.slice(1);
++            const base = driveCase(path.normalize(restrictedRoot));
++            const resolved = driveCase(path.normalize(pathForNextCheck));
++            const prefix = base.endsWith(path.sep) ? base : base + path.sep;
++            if (resolved !== base && !resolved.startsWith(prefix)) {
++                throw new Error('Path outside Local DC authorized directory');
++            }
++        }
++        if (restrictedRoot && entry) {
++            const target = await resolveRealPath(absoluteOriginal);
++            assertLocalDrive(target);
++            if (!isWithinAllowedDir(normalizePath(target), restrictedRoot)) {
++                throw new Error('Path outside Local DC authorized directory');
++            }
++        }
+@@ -732 +778 @@ export async function writeFile(filePath: string, content: string, mode: 'rewrit
+-    const validPath = await validatePath(filePath);
++    const validPath = await validatePath(filePath, { write: true });
+@@ -818 +864 @@ export async function createDirectory(dirPath: string): Promise<void> {
+-    const validPath = await validatePath(dirPath);
++    const validPath = await validatePath(dirPath, { write: true });
+@@ -865 +911 @@ export async function listDirectory(dirPath: string, depth: number = 2): Promise
+-                || (entry.isSymbolicLink() && await fs.stat(fullPath).then((stats) => stats.isDirectory(), () => false));
++                || (entry.isSymbolicLink() && await validatePath(fullPath).then(checked => fs.stat(checked)).then((stats) => stats.isDirectory(), () => false));
+@@ -1112 +1158 @@ export async function validatePdfOperationPaths(
+-    const targetPath = outputPath ? await validatePath(outputPath) : validPath;
++    const targetPath = await validatePath(outputPath || validPath, { write: true });
+@@ -1153 +1199 @@ export async function writePdf(
+-        const targetPath = outputPath ? await validatePath(outputPath) : validPath;
++        const targetPath = await validatePath(outputPath || validPath, { write: true });

@@ -16,3 +16,4 @@ engine/ripgrep/
 
 management/instance.local.json
 engine/proxy.local.json
+access-mode.txt

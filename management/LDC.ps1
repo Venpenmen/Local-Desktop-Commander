@@ -51,12 +51,24 @@ function Invoke-LdcMenuChoice {
             if ($mode) { $null = Invoke-LdcConsoleOperation select @{version=$id;mode=$mode} }
         }
         '6' {
-            $config = (Invoke-LdcConsoleOperation config.get).result
+            $snapshot = (Invoke-LdcConsoleOperation state).result
+            if (!$snapshot) { return }
+            $config = $snapshot.configuration
             $id = $config.target.version
-            Write-Host "配置的文件授权目录：$($config.roots[$id])"
-            if (!$script:Versions[$id].RootConfig) { Write-Host '此版本使用固定授权目录。'; return }
-            $path = Read-Host '输入新的本机目录（Enter 保持）'
-            if ($path) { $null = Invoke-LdcConsoleOperation root.set @{version=$id;path=$path;revision=$config.revision} }
+            Write-Host '=== 文件访问权限管理 ==='
+            $actual = if ($snapshot.fileAccess.actual.mode) { $snapshot.fileAccess.actual.mode } else { '未观测' }
+            Write-Host "当前实际权限：$actual；下次启动：$($config.accessModes[$id])"
+            if ($actual -eq 'full') { Write-Host '当前文件工具可访问 Windows 用户有权访问的所有本地路径。' }
+            Write-Host "受限授权目录：$($config.roots[$id])"
+            Write-Host '1 受限访问   2 完全访问   3 修改受限目录   0 返回'
+            switch (Read-Host '选择（Enter 返回）') {
+                '1' { $null = Invoke-LdcConsoleOperation access.set @{version=$id;mode='restricted';revision=$config.revision} }
+                '2' { $null = Invoke-LdcConsoleOperation access.set @{version=$id;mode='full';revision=$config.revision} }
+                '3' {
+                    $path = Read-Host '输入本机绝对目录或盘符根（Enter 取消）'
+                    if ($path) { $null = Invoke-LdcConsoleOperation root.set @{version=$id;path=$path;revision=$config.revision} }
+                }
+            }
         }
         '7' { Show-LdcStatus (Get-LdcObservation -IncludeHealth) -Detail }
         '8' { Show-LdcLogs }
@@ -79,7 +91,7 @@ function Show-LdcLegacyMenu {
         Write-Host '=== Local DC 管理控制台 ==='
         Show-LdcStatus (Get-LdcObservation -IncludeHealth)
         Write-Host '1 启动服务          2 停止服务          3 重启服务'
-        Write-Host '4 切换运行模式      5 切换运行版本      6 查看与设置授权目录'
+        Write-Host '4 切换运行模式      5 切换运行版本      6 文件访问权限'
         Write-Host '7 详细运行状态      8 查看运行日志      9 回滚至上一可用版本'
         Write-Host '10 退出控制台'
         Write-Host '11 网络与代理设置   12 保存或更换密钥   13 清除已保存密钥   14 网络连接诊断'

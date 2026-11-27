@@ -15,3 +15,5 @@ Both development lines use separate loopback instances. Follow [instance isolati
 
 ## Local checkpoints and shared rules
 Read AGENTS.md first. STATE.md and TASKS.md are per-worktree local records, intentionally excluded from public Git; initialize missing copies from the actual branch, current evidence and the relevant GUI/Gemini handoff. Never copy another branch's progress as verified. Keep local snapshots current at every meaningful checkpoint. Shared ROADMAP and CHANGELOG are maintained through develop. New feature worktrees must receive their own checkpoint files before development.
+
+File access is a separate management field. Read [the access handoff](file-access.md) before integrating access controls.

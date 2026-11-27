@@ -128,6 +128,8 @@ function Initialize-LdcRegistry {
             PidFile=Join-Path $runtime 'tunnel.pid'; HealthFile=Join-Path $runtime 'health.url'
             LogFile=Join-Path $runtime 'tunnel.log'; EndpointFile=Join-Path $runtime 'proxy-url.json'
             RootConfig=$(if ($row.rootConfig) { Join-LdcPath $directory $row.rootConfig })
+            AccessConfig=$(if ($row.rootConfig -eq 'allowed-root.txt' -and $row.rootValidator -eq 'stdio.mjs') { Join-LdcPath $directory 'access-mode.txt' })
+            EffectiveAccess=Join-Path $runtime 'effective-access.json'
             Validator=$(if ($row.rootValidator) { Join-LdcPath $directory $row.rootValidator })
             FixedRoot=$(if ($row.fixedRoot) { [IO.Path]::GetFullPath((Join-Path $script:Project $row.fixedRoot)) })
             FilesTools=[int]$row.filesTools; TerminalTools=[int]$row.terminalTools
@@ -260,7 +262,7 @@ function Get-LdcObservation {
     if ($items.Count -ne 1) { return [pscustomobject]@{State='unsafe'; Reason='检测到多个项目隧道，无法唯一识别。'} }
     $process = $items[0]
     $state = [pscustomobject]@{State='unsafe'; Reason=''; Pid=[int]$process.ProcessId; Birth=Get-LdcBirth $process
-        Version=$null; Mode='unknown'; Health=$null; Url=$null}
+        Version=$null; Mode='unknown'; Health=$null; Url=$null; FileAccess=$null}
     try {
         $args = @(Get-LdcTokens $process.CommandLine)
         if ($args[0] -ne $script:Tunnel) { throw '进程启动标识不匹配。' }
@@ -318,6 +320,7 @@ function Get-LdcObservation {
         }
         $state.Mode = Get-LdcMode $process $version $state.Health
         $state.State = 'running'
+        $state.FileAccess = Get-LdcEffectiveAccess $state
     } catch {
         $state.Reason = $_.Exception.Message
     }
@@ -370,7 +373,7 @@ function Show-LdcStatus {
     if ($Detail) {
         Write-Host "进程启动 UTC：$([datetime]::new($Observation.Birth, [DateTimeKind]::Utc).ToString('o'))"
         Write-Host "运行日志：$($version.LogFile)"
-        Write-Host "当前配置范围：$(Get-LdcConfiguredRoot $version)（修改后重启生效）"
+        Write-Host "文件权限：实际 $($Observation.FileAccess.mode)，配置 $(Get-LdcAccessMode $version)；受限根 $(Get-LdcConfiguredRoot $version)"
     }
 }
 
@@ -382,11 +385,79 @@ function Get-LdcConfiguredRoot {
     return $Version.FixedRoot
 }
 
+function Get-LdcAccessMode($Version) {
+    if (!$Version.AccessConfig) { return 'restricted' }
+    Assert-LdcPlainPath $Version.AccessConfig
+    if (!(Test-Path -LiteralPath $Version.AccessConfig)) { return 'restricted' }
+    $mode = [IO.File]::ReadAllText($Version.AccessConfig).Trim()
+    if ($mode -cnotin 'restricted','full') { throw 'INVALID_ACCESS_MODE' }
+    $mode
+}
+
+function Get-LdcEffectiveAccess($Observation) {
+    try {
+        $path = $Observation.Version.EffectiveAccess
+        $entry = Read-LdcJson $path
+        if (!$entry -or $entry.accessMode -cnotin 'restricted','full' -or $entry.pid -le 0 -or !$entry.allowedRoot) { return }
+        $engine = Get-LdcProcess $entry.pid
+        if (!$engine -or !$engine.ExecutablePath -or [IO.Path]::GetFileName($engine.ExecutablePath) -ne 'node.exe') { return }
+        $birth = Get-LdcBirth $engine
+        if ($birth -lt $Observation.Birth -or (Get-Item -LiteralPath $path).LastWriteTimeUtc.Ticks -lt $birth) { return }
+        $args = @(Get-LdcTokens $engine.CommandLine)
+        if ($args.Count -lt 3 -or $args[1] -notmatch '(^|[\\/])stdio\.mjs$' -or '--tunnel' -notin $args) { return }
+        $cursor = $engine
+        for ($i=0; $i -lt 5; $i++) {
+            $parent = Get-LdcProcess $cursor.ParentProcessId
+            if (!$parent -or (Get-LdcBirth $parent) -gt (Get-LdcBirth $cursor)) { return }
+            if ($parent.ProcessId -eq $Observation.Pid -and (Get-LdcBirth $parent) -eq $Observation.Birth) {
+                return @{mode=$entry.accessMode; allowedRoot=$entry.allowedRoot}
+            }
+            $cursor = $parent
+        }
+    } catch { }
+}
+
+function Assert-LdcAccessConfigWritable($Version) {
+    $active = Get-LdcObservation
+    $pending = Read-LdcJson $script:PendingPath
+    if (($active.State -ne 'stopped' -and (!$active.Version -or $active.Version.Id -eq $Version.Id)) -or
+        ($pending.version -eq $Version.Id -and (Test-LdcPending $pending))) {
+        throw 'ACCESS_BUSY'
+    }
+}
+
+function Set-LdcAccessMode($Version,[string]$Mode) {
+    if ($Mode -cnotin 'restricted','full') { throw 'INVALID_ACCESS_MODE' }
+    if (!$Version.AccessConfig -or ($Mode -eq 'full' -and $script:Instance.transport -eq 'local-dev')) { throw 'ACCESS_UNAVAILABLE' }
+    Assert-LdcAccessConfigWritable $Version
+    Assert-LdcPlainPath $Version.Validator
+    Assert-LdcInstanceRoot (Invoke-LdcRootProbe $Version.Validator)
+    $message = '启用受限文件访问，启动后恢复原授权目录'
+    if ($Mode -eq 'full') { $message = '启用完全文件访问。文件工具可访问当前 Windows 用户有权访问的所有本地路径' }
+    if (!(Confirm-LdcAction $message)) { return $false }
+    Write-LdcText $Version.AccessConfig ($Mode + [Environment]::NewLine)
+    Write-LdcEvent 'access-updated' $Version.Id 'files'
+    Write-Host '已保存，下次启动生效。'
+    return $true
+}
+
 function Invoke-LdcRootProbe {
     param([string]$Validator)
     $node = (Get-Command node -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
-    $root = & $node $Validator --check-root 2>$null
-    if ($LASTEXITCODE -ne 0 -or !$root) { throw '授权目录须为已存在的本机绝对目录。盘符根、UNC 和重解析路径不允许。' }
+    $ErrorActionPreference = 'Continue'
+    $oldEncoding = [Console]::OutputEncoding
+    try {
+        [Console]::OutputEncoding = $script:Utf8
+        $output = @(& $node $Validator --check-root 2>&1)
+    } finally { [Console]::OutputEncoding = $oldEncoding }
+    if ($LASTEXITCODE -ne 0 -or $output.Count -ne 1 -or $output[0] -isnot [string]) {
+        try {
+            $diagnostic = Join-Path $script:DataDir 'root-validation.log'
+            Write-LdcText $diagnostic (($output | ForEach-Object { [string]$_ }) -join [Environment]::NewLine)
+        } catch {}
+        throw 'INVALID_ROOT'
+    }
+    $root = $output[0]
     return [string]$root
 }
 
@@ -401,12 +472,7 @@ function Confirm-LdcAction {
 function Set-LdcRoot {
     param($Version,[string]$Proposed)
     if (!$Version.RootConfig -or !$Version.Validator) { throw '此版本使用固定授权目录。' }
-    $active = Get-LdcObservation
-    $pending = Read-LdcJson $script:PendingPath
-    if (($active.State -ne 'stopped' -and (!$active.Version -or $active.Version.Id -eq $Version.Id)) -or
-        ($pending.version -eq $Version.Id -and (Test-LdcPending $pending))) {
-        throw '请先停止目标版本或结束它的启动，再修改授权目录。'
-    }
+    Assert-LdcAccessConfigWritable $Version
     Assert-LdcPlainPath $Version.Validator
     $stage = Join-Path $script:DataDir ('root-check-' + [guid]::NewGuid().ToString('N'))
     Assert-LdcPlainPath $stage
@@ -453,6 +519,7 @@ function Assert-LdcLaunchable {
         Assert-LdcPlainPath $Version.Validator
         Assert-LdcPlainPath $Version.RootConfig
         Assert-LdcInstanceRoot (Invoke-LdcRootProbe $Version.Validator)
+        if ((Get-LdcAccessMode $Version) -eq 'full' -and $script:Instance.transport -eq 'local-dev') { throw 'ACCESS_UNAVAILABLE' }
     } elseif ($Version.FixedRoot -and !(Test-Path -LiteralPath $Version.FixedRoot -PathType Container)) {
         throw '固定授权目录不存在。'
     }
@@ -495,6 +562,7 @@ function Invoke-LdcWorker {
         Assert-LdcLaunchable $version
         Assert-LdcPlainPath $script:Instance.temporary
         $null = [IO.Directory]::CreateDirectory($script:Instance.temporary)
+        $env:LOCAL_DC_TRANSPORT = $script:Instance.transport
         $env:TEMP = $script:Instance.temporary
         $env:TMP = $script:Instance.temporary
         Write-Host ("正在启动 {0} · {1}" -f $version.Label,(Format-LdcMode $RunMode))

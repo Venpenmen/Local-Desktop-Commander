@@ -2,12 +2,14 @@
 function Get-LdcConfiguration {
     $selection = Get-LdcSelection
     $roots = [ordered]@{}
+    $accessModes = [ordered]@{}
     foreach ($version in ($script:Versions.Values | Sort-Object Id)) {
         $roots[$version.Id] = Get-LdcConfiguredRoot $version
+        try { $accessModes[$version.Id] = Get-LdcAccessMode $version } catch { $accessModes[$version.Id] = 'invalid' }
     }
     $openai = $null
     if ($script:Instance.transport -eq 'openai') { $openai = Get-LdcOpenAiSettings }
-    $config = [ordered]@{schema=1; instance=$script:Instance.key; target=$selection.target; rollback=$selection.rollback; roots=$roots; proxy=$openai.proxy}
+    $config = [ordered]@{schema=1; instance=$script:Instance.key; target=$selection.target; rollback=$selection.rollback; roots=$roots; accessModes=$accessModes; proxy=$openai.proxy}
     $sha = [Security.Cryptography.SHA256]::Create()
     try {
         $revision = [BitConverter]::ToString($sha.ComputeHash($script:Utf8.GetBytes(($config | ConvertTo-Json -Compress -Depth 8)))).Replace('-','').ToLowerInvariant()
@@ -22,11 +24,18 @@ function Get-LdcSnapshot {
     $state = if ($actual.State -eq 'stopped' -and (Test-LdcPending $pending)) {'starting'} else {$actual.State}
     $expected = $null
     switch ($actual.Mode) { files { $expected = $actual.Version.FilesTools }; terminal { $expected = $actual.Version.TerminalTools } }
+    $config = Get-LdcConfiguration
     [ordered]@{
         instance=@{id=$script:Instance.id; key=$script:Instance.key; transport=$script:Instance.transport}
         observedUtc=[datetime]::UtcNow.ToString('o')
         actual=@{state=$state; version=$actual.Version.Id; mode=$actual.Mode; pid=$actual.Pid; birth=$actual.Birth}
-        configuration=Get-LdcConfiguration
+        configuration=$config
+        fileAccess=@{
+            actual=$actual.FileAccess
+            target=@{mode=$config.accessModes[$config.target.version]; allowedRoot=$config.roots[$config.target.version]}
+            restartRequired=($actual.State -eq 'running' -and $actual.FileAccess -and $actual.Version.Id -eq $config.target.version -and
+                ($actual.FileAccess.mode -ne $config.accessModes[$config.target.version] -or $actual.FileAccess.allowedRoot -ne $config.roots[$config.target.version]))
+        }
         readiness=@{local=$actual.Health.Ready -eq 200; expectedTools=$expected; remoteInvocation='unverified'}
         transports=@(Get-LdcTransportDescriptors $actual.Health)
         task=Get-LdcRecentTask
@@ -59,7 +68,7 @@ function Invoke-LdcMutation {
     if (!$Interactive -and !$Arguments.confirmed) { throw 'CONFIRMATION_REQUIRED' }
     Invoke-LdcLocked {
         $selection = Get-LdcSelection
-        if ($Operation -in 'select','root.set','network.set') {
+        if ($Operation -in 'select','root.set','access.set','network.set') {
             if ((!$Interactive -or $Arguments.revision) -and $Arguments.revision -cne (Get-LdcConfiguration).revision) { throw 'REVISION_CONFLICT' }
         }
         $owner = Get-LdcProcess $PID
@@ -91,6 +100,11 @@ function Invoke-LdcMutation {
                         throw 'INVALID_ARGUMENT'
                     }
                     if (!(Set-LdcRoot $script:Versions[$Arguments.version] $Arguments.path)) { $task.state = 'cancelled' }
+                }
+                'access.set' {
+                    if ($Arguments.version -isnot [string] -or !$script:Versions.ContainsKey($Arguments.version) -or
+                        $Arguments.mode -isnot [string]) { throw 'INVALID_ARGUMENT' }
+                    if (!(Set-LdcAccessMode $script:Versions[$Arguments.version] $Arguments.mode)) { $task.state = 'cancelled' }
                 }
                 'network.set' { Set-LdcOpenAiProxy $Arguments.proxy }
                 'credential.configure' { & $script:LdcOpenAiHelper -Action Configure }
@@ -124,7 +138,7 @@ function Invoke-LdcRequest {
         }
         $reply.instance = $script:Instance.key
         $reply.result = switch ($operation) {
-            capabilities { $operations=@('capabilities','state','config.get','versions','events','logs','task.get','extensions','diagnose','start','stop','restart','rollback','select','root.set','network.set')
+            capabilities { $operations=@('capabilities','state','config.get','versions','events','logs','task.get','extensions','diagnose','start','stop','restart','rollback','select','root.set','access.set','network.set')
                 if ($script:Instance.transport -eq 'local-dev') { $operations = @($operations | Where-Object { $_ -notin 'diagnose','network.set' }) }
                 @{protocol=1; operations=$operations; transports=@(Get-LdcTransportDescriptors $null)}
             }
@@ -140,7 +154,7 @@ function Invoke-LdcRequest {
             }
             extensions { ,@(Get-LdcExtensions) }
             diagnose { Get-LdcOpenAiDiagnosis }
-            { $_ -in 'start','stop','restart','rollback','select','root.set','network.set' } { Invoke-LdcMutation $operation $Request.arguments -Interactive:$Interactive }
+            { $_ -in 'start','stop','restart','rollback','select','root.set','access.set','network.set' } { Invoke-LdcMutation $operation $Request.arguments -Interactive:$Interactive }
             { $_ -in 'credential.configure','credential.forget','network.prompt' } {
                 if (!$Interactive) { throw 'INTERACTIVE_REQUIRED' }
                 if ($_ -eq 'network.prompt') { Invoke-LdcLocked { & $script:LdcOpenAiHelper -Action Network } }
@@ -151,7 +165,7 @@ function Invoke-LdcRequest {
         $reply.ok = $true
     } catch {
         $code = $_.Exception.Message
-        if ($code -cnotmatch '^(INSTANCE_MISMATCH|UNSUPPORTED_ON_INSTANCE|INVALID_REQUEST|INVALID_MANIFEST|INVALID_ARGUMENT|UNSUPPORTED_PROTOCOL|UNKNOWN_OPERATION|CONFIRMATION_REQUIRED|REVISION_CONFLICT|BUSY|INTERACTIVE_REQUIRED|TASK_NOT_FOUND|OPERATION_FAILED)$') { $code = 'OPERATION_FAILED' }
+        if ($code -cnotmatch '^(INSTANCE_MISMATCH|UNSUPPORTED_ON_INSTANCE|INVALID_REQUEST|INVALID_MANIFEST|INVALID_ARGUMENT|INVALID_ROOT|INVALID_ACCESS_MODE|ACCESS_BUSY|ACCESS_UNAVAILABLE|UNSUPPORTED_PROTOCOL|UNKNOWN_OPERATION|CONFIRMATION_REQUIRED|REVISION_CONFLICT|BUSY|INTERACTIVE_REQUIRED|TASK_NOT_FOUND|OPERATION_FAILED)$') { $code = 'OPERATION_FAILED' }
         $reply.error = @{code=$code; message=$script:LdcErrors[$code]}
         if ($script:LdcRequestTaskId) { $reply.error.taskId = $script:LdcRequestTaskId }
         if ($Interactive) { Write-Host $_.Exception.Message }
@@ -167,6 +181,10 @@ function Invoke-LdcRequest {
 $script:LdcErrors = @{
     INSTANCE_MISMATCH='The request was addressed to a different instance.'
     UNSUPPORTED_ON_INSTANCE='This instance uses a loopback transport without hosted credentials or proxy settings.'
+    INVALID_ROOT='授权目录必须是现有本机普通目录，可使用盘符根。详细错误见 management/runtime/root-validation.log。'
+    INVALID_ACCESS_MODE='文件访问权限模式必须是 restricted 或 full。'
+    ACCESS_BUSY='请先停止目标实例或等待其启动结束，再修改文件访问权限。'
+    ACCESS_UNAVAILABLE='当前版本或开发代理不支持该文件访问权限设置。'
     INVALID_REQUEST='A valid request ID and operation are required.'
     INVALID_MANIFEST='An extension manifest is incompatible or invalid.'
     INVALID_ARGUMENT='The operation arguments are invalid.'

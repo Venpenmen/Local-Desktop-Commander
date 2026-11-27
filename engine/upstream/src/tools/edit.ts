@@ -430,7 +430,7 @@ export async function handleEditBlock(args: unknown): Promise<ServerResult> {
     let validatedPath: string;
     let handler: Awaited<ReturnType<typeof import('../utils/files/factory.js').getFileHandler>>;
     try {
-        validatedPath = await validatePath(parsed.file_path);
+        validatedPath = await validatePath(parsed.file_path, { write: true });
         const { getFileHandler } = await import('../utils/files/factory.js');
         handler = await getFileHandler(validatedPath);
     } catch (error) {
