@@ -15,3 +15,14 @@
 若平台要求手动注册，在运行中的 OAuth 实验使用 Run.ps1 AddClient -Id <实验ID> -RedirectUri <Gemini 显示的精确地址>。凭据生成在本机受保护的 manual-client.json。切换实验地址后需重新核对 Gemini 显示的回调。诊断日志记录 OAuth 路由、HTTP 状态及注册认证方式，不保存原始查询、请求体或密钥。
 
 使用 node --test consent-browser.test.mjs 在 Edge 无头浏览器验证预批准前拒绝、批准后直接跳转和重复授权拒绝。诊断记录原因分类，不保存表单字段值、来源地址或批准码。
+
+
+## C2.5: isolated real LDC read_file experiment
+
+This stage is **separate from** the C2.4 ldc_probe and does not change its OAuth source, run, token, or client registration. Start the isolated file reader using `Run-Read.ps1 Start -OAuth -Seconds 7200`; local-only testing uses `Run-Read.ps1 Start -Seconds 120`. The standalone runner creates a private copy of the pinned LDC stdio launcher, uses the existing upstream engine implementation through a local junction, and sets `access-mode.txt=restricted` with `allowed-root.txt` pointing to a newly created run-specific `gemini-read-instance/workspace` directory. Terminal mode is never enabled. It is an experimental transport, not the general-purpose C4 adapter.
+
+Only `read_file(path, offset?, length?)` is discoverable. The bridge forwards this invocation to the actual pinned LDC engine, explicitly disables URL fetching and rejects other tools at the gateway. The original engine enforces canonical root, local drive and junction path rules. The public gateway requires an OAuth token with the **file:read** scope, using isolated client registration and the original local single-use preapproval security pattern. Anonymous public mode is intentionally unsupported. Local-only mode binds to 127.0.0.1 for integration tests.
+
+Manual installation on Gemini: obtain the exact Google callback for the **new file-read app**, run `Run-Read.ps1 AddClient -Id <ID> -RedirectUri <callback>`, enter the locally generated credentials in Gemini **without copying secrets to chat**, and run `Run-Read.ps1 Arm -Id <ID>` immediately before authorization (valid for five minutes). The Quick Tunnel address and OAuth client are run-specific and expire; never use the C2.4 probe client to grant file access. `Run-Read.ps1 Status -Id <ID>` checks the owned process; `Stop -Id <ID>` stops its process tree, revokes in-memory tokens and records shutdown.
+
+Regression: `node --test read.test.mjs read-oauth.test.mjs read-runner.test.mjs`. Evidence is under the ignored `runtime/<ID>` tree. Stop the public experiment after Gemini website proof. Do not publish any `runtime/` evidence, client secrets or actual file contents. The Windows engine has normal user OS permissions; the restricted root and tool whitelist provide application-level constraints, not an operating-system sandbox.
