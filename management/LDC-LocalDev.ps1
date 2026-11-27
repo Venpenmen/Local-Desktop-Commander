@@ -16,7 +16,24 @@ function Get-LdcLocalDevDuration($Version) {
     return [string]$config.durationSeconds + 's'
 }
 
+function Get-LdcDevLaunchMutexName {
+    "Local\LDC-dev-launch-$($script:Instance.key)"
+}
+
 function Invoke-LdcLocalDevLaunch($Version,[string]$RunMode) {
+    $mutex = New-Object Threading.Mutex($false, (Get-LdcDevLaunchMutexName))
+    $locked = $false
+    try {
+        try { $locked = $mutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $locked = $true }
+        if (!$locked -or @(Get-LdcTunnelProcesses).Count) { throw '本地测试实例已运行或启动中。' }
+        Start-LdcLocalDevProxy $Version $RunMode
+    } finally {
+        if ($locked) { $mutex.ReleaseMutex() }
+        $mutex.Dispose()
+    }
+}
+
+function Start-LdcLocalDevProxy($Version,[string]$RunMode) {
     $runtime = Split-Path -Parent $Version.PidFile
     foreach ($path in $Version.PidFile,$Version.HealthFile,$Version.EndpointFile,$Version.LogFile,$script:Instance.temporary) {
         Assert-LdcPlainPath $path

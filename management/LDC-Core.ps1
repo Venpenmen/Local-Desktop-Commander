@@ -514,14 +514,15 @@ function Invoke-LdcWorker {
     }
     if ($code -ne 0) {
         Write-Host "退出码 $code。诊断见 $($version.LogFile)。认证失败时核对现有密钥、所属组织及权限。可在菜单 9 回滚。"
-        $null = Read-Host '按 Enter 关闭启动窗口'
+        if ($script:Instance.transport -eq 'openai') { $null = Read-Host '按 Enter 关闭启动窗口' }
     }
     return $code
 }
 
 function Wait-LdcLauncherSlot {
-    if ($script:Instance.transport -eq 'local-dev' -or !$script:Registry.launchMutex) { return }
-    $mutex = New-Object Threading.Mutex($false, [string]$script:Registry.launchMutex)
+    $name = if ($script:Instance.transport -eq 'local-dev') { Get-LdcDevLaunchMutexName } else { $script:Registry.launchMutex }
+    if (!$name) { return }
+    $mutex = New-Object Threading.Mutex($false, [string]$name)
     $ready = $false
     try {
         try { $ready = $mutex.WaitOne(6000) } catch [Threading.AbandonedMutexException] { $ready = $true }

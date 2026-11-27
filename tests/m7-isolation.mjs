@@ -36,7 +36,7 @@ async function result(root, operation, args, instance) {
 async function ready(root, key) {
   for (let i = 0; i < 15; i++) {
     const state = await result(root, 'state', null, key);
-    if (state.readiness.local && state.transports[0].health.Complete) return state;
+    if (state.actual.state === 'running' && state.readiness.local) return state;
     await new Promise(resolve => setTimeout(resolve, 500));
   }
   assert.fail('Local MCP discovery timed out');
@@ -106,9 +106,12 @@ try {
   try {
     assert.notEqual(left.port, right.port);
     assert.notEqual(left.healthPort, right.healthPort);
+    const [leftTools, rightTools] = await Promise.all([left.client.listTools(), right.client.listTools()]);
+    assert.equal(leftTools.tools.length, a.readiness.expectedTools);
+    assert.equal(rightTools.tools.length, b.readiness.expectedTools);
     const args = target => ({ name: 'list_directory', arguments: { path: target, depth: 1 } });
-    assert.equal((await left.client.callTool(args(targetA))).isError, undefined);
-    assert.equal((await right.client.callTool(args(targetB))).isError, undefined);
+    assert.equal((await left.client.callTool(args(targetA))).isError ?? false, false);
+    assert.equal((await right.client.callTool(args(targetB))).isError ?? false, false);
     const cross = await left.client.callTool(args(targetB));
     assert(cross.isError || /denied|allowed|not permitted|outside/i.test(JSON.stringify(cross.content)));
   } finally {
