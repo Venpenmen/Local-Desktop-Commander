@@ -72,7 +72,7 @@ export function createProbeOAuth({ issuer, approvalKey, serveMcp, log, getManual
           "; base-uri 'none'; frame-ancestors 'none'" }).type('html').send('<!doctype html><meta charset="utf-8"><title>Authorize LDC Gemini Probe</title>' +
         '<h1>Authorize LDC Gemini Probe</h1><p>Allow this connection to call the read-only random nonce probe.</p>' +
         '<form method="post" action="/consent"><input type="hidden" name="ticket" value="' + ticket +
-        '"><label>Local approval key <input name="approval" type="password" required autocomplete="off"></label>' +
+        '"><input type="hidden" name="interaction" value="browser"><label>Local approval key <input name="approval" type="password" required autocomplete="off"></label>' +
         '<button>Authorize probe</button></form>');
     },
     async challengeForAuthorizationCode(client, code) {
@@ -147,6 +147,11 @@ export function createProbeOAuth({ issuer, approvalKey, serveMcp, log, getManual
     log({ kind: 'oauth', event: 'consent-approved' });
     res.set('Content-Security-Policy', "default-src 'none'; form-action 'self' " + redirect.origin +
       "; base-uri 'none'; frame-ancestors 'none'");
+    if (req.body.interaction === 'browser') {
+      const href = redirect.href.replace(/[&"<>]/g, character => ({ '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' })[character]);
+      return res.type('html').send('<!doctype html><meta charset="utf-8"><title>Return to Google</title>' +
+        '<h1>Probe approved</h1><p><a rel="noreferrer" href="' + href + '">Continue to Google</a></p>');
+    }
     res.redirect(303, redirect.href);
   });
   const authRouter = mcpAuthRouter({ provider, issuerUrl: issuer, resourceServerUrl: resource,

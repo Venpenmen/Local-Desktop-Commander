@@ -56,7 +56,7 @@ test('Chromium submits an actual URL-encoded consent form with a verifiable orig
       const post = await response;
       assert.equal(post.status(), expected);
       assert.match(await post.request().headerValue('content-type'), /^application\/x-www-form-urlencoded/);
-      assert.deepEqual([...new URLSearchParams(post.request().postData()).keys()].sort(), ['approval', 'ticket']);
+      assert.deepEqual([...new URLSearchParams(post.request().postData()).keys()].sort(), ['approval', 'interaction', 'ticket']);
       return post;
     }
     const oldPolicy = async route => {
@@ -74,22 +74,14 @@ test('Chromium submits an actual URL-encoded consent form with a verifiable orig
     await submit(403, 'wrong-approval-key');
     assert((await observed()).some(event => event.reason === 'approval-rejected'));
     await page.goto(authorize);
-    await page.locator('input[name="approval"]').fill(approvalKey);
+    const accepted = await submit(200, approvalKey);
+    assert.equal(await accepted.request().headerValue('origin'), issuer.origin);
+    assert((await observed()).some(event => event.event === 'consent-approved'));
     const callbackRequest = page.waitForRequest(request => {
       const url = new URL(request.url());
       return url.origin + url.pathname === callback && url.searchParams.has('code');
     }, { timeout: 7000 });
-    const sent = page.waitForRequest(request => request.url() === issuer.origin + '/consent');
-    await page.locator('button').click().catch(error => {
-      if (!String(error).includes('ERR_FAILED')) throw error;
-    });
-    assert.equal(await (await sent).headerValue('origin'), issuer.origin);
-    for (let attempt = 0; attempt < 20 && !(await observed()).some(event => event.route === '/consent' && event.status === 303); attempt++) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
-    assert((await observed()).some(event => event.route === '/consent' && event.status === 303));
-    assert((await observed()).some(event => event.event === 'consent-approved'));
-    await page.waitForURL(url => url.origin === new URL(callback).origin, { timeout: 5000 });
+    await page.getByRole('link', { name: 'Continue to Google' }).click();
     assert.equal((await callbackRequest).method(), 'GET');
   } finally {
     await browser.close();
