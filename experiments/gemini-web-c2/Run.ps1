@@ -1,9 +1,10 @@
 param(
-    [ValidateSet('Start','Status','Stop','AddClient')][string]$Action='Status',
+    [ValidateSet('Start','Status','Stop','AddClient','Approve')][string]$Action='Status',
     [ValidatePattern('^[a-f0-9]{32}$')][string]$Id,
     [switch]$Public,
     [switch]$OAuth,
     [string]$RedirectUri,
+    [ValidatePattern('^[A-Za-z0-9_-]{43}$')][string]$Transaction,
     [ValidateRange(30,7200)][int]$Seconds=3600
 )
 $ErrorActionPreference='Stop'
@@ -30,6 +31,34 @@ $process=Get-CimInstance Win32_Process -Filter "ProcessId=$([int]$record.pid)"
 $owned=$process -and $process.ExecutablePath -eq $node -and
     $process.CommandLine -match ('"' + [regex]::Escape($scriptPath) + '"\s+' + $Id + '\s') -and
     ([datetime]$process.CreationDate).ToUniversalTime() -le (Get-Item -LiteralPath $status).LastWriteTimeUtc
+if($Action -eq 'Approve'){
+    if(!$owned -or $record.kind -ne 'oauth' -or !$Transaction){throw 'Specify a live OAuth run and transaction.'}
+    $dir=Split-Path -Parent $status
+    $requests=Join-Path $dir 'approval-requests'
+    $grants=Join-Path $dir 'approval-grants'
+    $requestPath=Join-Path $requests ($Transaction+'.json')
+    $clientPath=Join-Path $dir 'manual-client.json'
+    foreach($path in $dir,$requests,$grants,$requestPath,$clientPath){
+        $item=Get-Item -LiteralPath $path -Force
+        if($item.Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Approval files cannot use a reparse point.'}
+    }
+    $request=Get-Content -LiteralPath $requestPath -Raw | ConvertFrom-Json
+    $client=Get-Content -LiteralPath $clientPath -Raw | ConvertFrom-Json
+    $now=[DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+    if($request.ticket -cne $Transaction -or $request.clientId -cne $client.client_id -or
+       $request.redirectUri -cnotin $client.redirect_uris -or $request.expiresAt -le $now){
+        throw 'Transaction expired or does not match the active hand-registered client.'
+    }
+    $file=Join-Path $grants ($Transaction+'.json')
+    $temp=Join-Path $grants ([guid]::NewGuid().ToString('N')+'.tmp')
+    $grant=@{ticket=$Transaction;clientId=$request.clientId;redirectUri=$request.redirectUri;expiresAt=[math]::Min($request.expiresAt,$now+45)}
+    try {
+        [IO.File]::WriteAllText($temp,($grant|ConvertTo-Json),(New-Object Text.UTF8Encoding($false)))
+        [IO.File]::Move($temp,$file)
+    }finally{[IO.File]::Delete($temp)}
+    Write-Output 'The named probe transaction has been approved locally.'
+    return
+}
 if($Action -eq 'AddClient'){
     if(!$owned -or $record.kind -ne 'oauth' -or !$record.publicUrl){throw 'An active OAuth experiment is required.'}
     if($RedirectUri -cnotmatch '^https://oauth-redirect(?:-sandbox|-test)?\.googleusercontent\.com/[ra]/[A-Za-z0-9._~-]+$'){

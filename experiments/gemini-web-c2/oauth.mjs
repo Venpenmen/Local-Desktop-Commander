@@ -1,4 +1,4 @@
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import express from 'express';
 import { mcpAuthRouter, getOAuthProtectedResourceMetadataUrl } from '@modelcontextprotocol/sdk/server/auth/router.js';
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
@@ -8,18 +8,17 @@ import { InvalidClientMetadataError, InvalidGrantError, InvalidRequestError, Inv
 const googleCallback = /^https:\/\/oauth-redirect(?:-sandbox|-test)?\.googleusercontent\.com\/[ra]\/[A-Za-z0-9._~-]+$/;
 const random = () => randomBytes(32).toString('base64url');
 const now = () => Math.floor(Date.now() / 1000);
-const equal = (given, secret) => {
-  if (typeof given !== 'string' || given.length !== secret.length) return false;
-  const a = Buffer.from(given);
-  const b = Buffer.from(secret);
-  return a.length === b.length && timingSafeEqual(a, b);
-};
-
-export function createProbeOAuth({ issuer, approvalKey, serveMcp, log, getManualClient = () => undefined, tokenSeconds = 600 }) {
+export function createProbeOAuth({ issuer, publishApproval, takeApproval, serveMcp, log, getManualClient = () => undefined, tokenSeconds = 600 }) {
   const resource = new URL('/mcp', issuer);
   const clients = new Map();
   const pending = new Map();
   const codes = new Map();
+  function waitPage(res, ticket) {
+    const path = '/approval/' + ticket;
+    return res.type('html').send('<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="2;url=' + path +
+      '"><title>Waiting for local approval</title><h1>Waiting for local approval</h1><p>Transaction <code>' +
+      ticket + '</code></p><p>Copy the transaction to your local operator. This page updates automatically.</p>');
+  }
   const tokens = new Map();
   const get = (map, key) => {
     const entry = map.get(key);
@@ -60,20 +59,15 @@ export function createProbeOAuth({ issuer, approvalKey, serveMcp, log, getManual
       assertResource(params.resource);
       if (params.scopes.some(scope => scope !== 'probe')) throw new InvalidScopeError('Only probe scope is available');
       if (!/^[A-Za-z0-9_-]{43}$/.test(params.codeChallenge)) throw new InvalidRequestError('Expected an S256 challenge');
+      const manual = getManualClient();
+      if (!manual?.client_secret || manual.client_id !== client.client_id ||
+          !manual.redirect_uris.includes(params.redirectUri)) throw new InvalidRequestError('Use the locally registered client');
       const ticket = random();
-      add(pending, ticket, { ...params, clientId: client.client_id, expiresAt: now() + 300 });
-      // Chromium uses Origin: null for form POSTs initiated by a no-referrer page.
-      // Send only the document origin, never the authorization query or ticket.
-      // Chromium applies form-action to the redirect after a form POST.
-      // The registered callback is already validated and bound to this grant.
-      const callbackOrigin = new URL(params.redirectUri).origin;
-      res.set({ 'Referrer-Policy': 'origin',
-        'Content-Security-Policy': "default-src 'none'; form-action 'self' " + callbackOrigin +
-          "; base-uri 'none'; frame-ancestors 'none'" }).type('html').send('<!doctype html><meta charset="utf-8"><title>Authorize LDC Gemini Probe</title>' +
-        '<h1>Authorize LDC Gemini Probe</h1><p>Allow this connection to call the read-only random nonce probe.</p>' +
-        '<form method="post" action="/consent"><input type="hidden" name="ticket" value="' + ticket +
-        '"><input type="hidden" name="interaction" value="browser"><label>Local approval key <input name="approval" type="password" required autocomplete="off"></label>' +
-        '<button>Authorize probe</button></form>');
+      const grant = { ...params, clientId: client.client_id, expiresAt: now() + 180 };
+      add(pending, ticket, grant);
+      publishApproval({ ticket, clientId: grant.clientId, redirectUri: grant.redirectUri, expiresAt: grant.expiresAt });
+      log({ kind: 'oauth', event: 'local-approval-requested' });
+      waitPage(res, ticket);
     },
     async challengeForAuthorizationCode(client, code) {
       return findCode(client, code).codeChallenge;
@@ -107,7 +101,7 @@ export function createProbeOAuth({ issuer, approvalKey, serveMcp, log, getManual
     res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer',
       'Content-Security-Policy': "default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'" });
     const route = req.path;
-    if (['/mcp','/register','/authorize','/consent','/token','/revoke','/.well-known/oauth-protected-resource',
+    if (['/mcp','/register','/authorize','/token','/revoke','/.well-known/oauth-protected-resource',
       '/.well-known/oauth-protected-resource/mcp','/.well-known/oauth-authorization-server'].includes(route)) {
       res.once('finish', () => log({ kind: 'oauth-http', route, method: req.method,
         source: req.headers['x-ldc-probe-test'] === 'codex' ? 'self-test' : req.headers['cf-ray'] ? 'public-unattributed' : 'local',
@@ -119,40 +113,32 @@ export function createProbeOAuth({ issuer, approvalKey, serveMcp, log, getManual
         Number(req.headers['content-length']) > 4096)) return res.sendStatus(413);
     next();
   });
-  app.post('/consent', express.urlencoded({ extended: false, limit: '2kb' }), (req, res) => {
-    const origin = req.headers.origin;
-    const originKind = origin === issuer.origin ? 'same-origin' : origin === 'null' ? 'opaque' : origin ? 'other' : 'absent';
-    const reject = (status, reason) => {
-      log({ kind: 'oauth', event: 'consent-rejected', status, reason, origin: originKind,
-        form: Boolean(req.is('application/x-www-form-urlencoded')) });
-      return res.sendStatus(status);
-    };
-    if (!req.is('application/x-www-form-urlencoded')) return reject(400, 'unsupported-form');
-    if (typeof req.body?.ticket !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(req.body.ticket)) return reject(400, 'missing-or-invalid-ticket');
-    if (origin && origin !== issuer.origin) return reject(400, 'origin-mismatch');
-    const entry = pending.get(req.body.ticket);
-    const grant = get(pending, req.body.ticket);
-    if (!grant) return reject(400, entry ? 'expired-ticket' : 'unknown-or-consumed-ticket');
-    if (!equal(req.body.approval, approvalKey)) {
-      pending.delete(req.body.ticket);
-      return reject(403, 'approval-rejected');
+  app.get('/approval/:ticket', (req, res) => {
+    const ticket = req.params.ticket;
+    if (!/^[A-Za-z0-9_-]{43}$/.test(ticket)) return res.sendStatus(404);
+    const grant = get(pending, ticket);
+    if (!grant) return res.status(410).type('text').send('Approval expired or already completed. Start again from Gemini.');
+    const manual = getManualClient();
+    if (manual?.client_id !== grant.clientId || !manual.redirect_uris.includes(grant.redirectUri)) {
+      pending.delete(ticket);
+      return res.sendStatus(403);
     }
-    pending.delete(req.body.ticket);
+    const approval = takeApproval(ticket);
+    if (!approval) return waitPage(res, ticket);
+    if (approval.ticket !== ticket || approval.clientId !== grant.clientId || approval.redirectUri !== grant.redirectUri ||
+        !Number.isInteger(approval.expiresAt) || approval.expiresAt <= now() || approval.expiresAt > grant.expiresAt) {
+      log({ kind: 'oauth', event: 'local-approval-rejected', reason: 'binding-or-expiry' });
+      return res.sendStatus(403);
+    }
+    pending.delete(ticket);
     const code = random();
     try { add(codes, code, { ...grant, expiresAt: now() + 60 }); }
     catch { return res.sendStatus(429); }
     const redirect = new URL(grant.redirectUri);
     redirect.searchParams.set('code', code);
     if (grant.state !== undefined) redirect.searchParams.set('state', grant.state);
-    log({ kind: 'oauth', event: 'consent-approved' });
-    res.set('Content-Security-Policy', "default-src 'none'; form-action 'self' " + redirect.origin +
-      "; base-uri 'none'; frame-ancestors 'none'");
-    if (req.body.interaction === 'browser') {
-      const href = redirect.href.replace(/[&"<>]/g, character => ({ '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' })[character]);
-      return res.type('html').send('<!doctype html><meta charset="utf-8"><title>Return to Google</title>' +
-        '<h1>Probe approved</h1><p><a rel="noreferrer" href="' + href + '">Continue to Google</a></p>');
-    }
-    res.redirect(303, redirect.href);
+    log({ kind: 'oauth', event: 'local-approval-consumed' });
+    return res.redirect(303, redirect.href);
   });
   const authRouter = mcpAuthRouter({ provider, issuerUrl: issuer, resourceServerUrl: resource,
     scopesSupported: ['probe'], resourceName: 'LDC Gemini OAuth Probe', clientRegistrationOptions: { clientSecretExpirySeconds: 7200 } });
@@ -189,13 +175,6 @@ export function createProbeOAuth({ issuer, approvalKey, serveMcp, log, getManual
   app.all('/mcp', requireBearerAuth({ verifier: provider, requiredScopes: ['probe'],
     expectedResource: resource, resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(resource) }), serveMcp);
   app.use((_req, res) => res.sendStatus(404));
-  app.use((error, req, res, _next) => {
-    if (req.path === '/consent') {
-      const reason = ['entity.too.large', 'entity.parse.failed', 'request.aborted', 'encoding.unsupported'].includes(error.type)
-        ? error.type : 'body-parser-error';
-      log({ kind: 'oauth', event: 'consent-rejected', status: 400, reason });
-    }
-    res.sendStatus(400);
-  });
+  app.use((_error, _req, res, _next) => res.sendStatus(400));
   return app;
 }

@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
-import { createHash, randomUUID, randomBytes } from 'node:crypto';
-import { mkdirSync, appendFileSync, writeFileSync, readFileSync } from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
+import { mkdirSync, appendFileSync, writeFileSync, readFileSync, unlinkSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -124,12 +124,26 @@ server.listen(0, '127.0.0.1', () => {
     const match = tail.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com\b/);
     if (match && !state.publicUrl) {
       if (kind === 'oauth') {
-        const approvalKey = randomBytes(24).toString('base64url');
-        writeFileSync(join(runtime, 'approval-key.txt'), approvalKey, { flag: 'wx' });
-        oauth = createProbeOAuth({ issuer: new URL(match[0]), approvalKey, serveMcp, log, getManualClient: () => {
-          try { return JSON.parse(readFileSync(join(runtime, 'manual-client.json'), 'utf8').replace(/^\uFEFF/, '')); }
-          catch { return undefined; }
-        } });
+        const requests = join(runtime, 'approval-requests');
+        const grants = join(runtime, 'approval-grants');
+        mkdirSync(requests, { recursive: true });
+        mkdirSync(grants, { recursive: true });
+        const read = path => JSON.parse(readFileSync(path, 'utf8').replace(/^\uFEFF/, ''));
+        oauth = createProbeOAuth({ issuer: new URL(match[0]), serveMcp, log,
+          getManualClient: () => {
+            try { return read(join(runtime, 'manual-client.json')); } catch { return undefined; }
+          },
+          publishApproval: request => writeFileSync(join(requests, request.ticket + '.json'), JSON.stringify(request), { flag: 'wx' }),
+          takeApproval: ticket => {
+            const path = join(grants, ticket + '.json');
+            try {
+              const approval = read(path);
+              unlinkSync(path);
+              try { unlinkSync(join(requests, ticket + '.json')); } catch {}
+              return approval;
+            } catch { return undefined; }
+          },
+        });
       }
       state.publicUrl = match[0] + '/mcp';
       save();
