@@ -6,11 +6,13 @@ param(
 )
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
-$store=Join-Path $env:LOCALAPPDATA 'LocalDC-Portable'
+. (Join-Path $PSScriptRoot 'LDC-Instance.ps1')
+$instance = Resolve-LdcInstance $root
+$store = Join-Path $env:LOCALAPPDATA ('LocalDC-Instances\' + $instance.key)
 $cred=Join-Path $store 'tunnel.dpapi'
 $config=Join-Path $store 'network.json'
 function Assert-StorePath {
- foreach($path in $store,$cred,$config){
+ foreach($path in (Split-Path -Parent $store),$store,$cred,$config){
   $item=Get-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
   if($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw '拒绝使用重解析的凭据或配置路径。'}
  }
@@ -114,6 +116,7 @@ function Initialize-LaunchEnvironment {
 }
 if($MyInvocation.InvocationName -eq '.'){return}
 Assert-StorePath
+if($instance.transport -eq 'local-dev'){throw '本地测试实例不使用托管隧道或 OpenAI 凭据。'}
 if($Action -eq 'Network'){
  $v=Read-Host '本地 HTTP 代理（127.0.0.1:端口），AUTO 恢复自动选择，回车保留'
  if(!$v){return}

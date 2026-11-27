@@ -6,6 +6,9 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $project = Split-Path -Parent $PSScriptRoot
+. (Join-Path $project 'management/LDC-Instance.ps1')
+$instance = Resolve-LdcInstance $project
+if ($instance.transport -eq 'local-dev' -and $Action -ne 'Local') { throw '测试实例请使用根目录管理入口。' }
 $exe = Join-Path $project 'transports\openai\bin\tunnel-client.exe'
 $profile = Join-Path $PSScriptRoot 'profile.local.yaml'
 $entry = Join-Path $PSScriptRoot 'stdio.mjs'

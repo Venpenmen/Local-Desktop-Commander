@@ -2,9 +2,9 @@
 $ErrorActionPreference = 'Stop'
 [Console]::InputEncoding = New-Object Text.UTF8Encoding($false)
 [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
-. (Join-Path $PSScriptRoot 'LDC-Core.ps1')
-. (Join-Path $PSScriptRoot 'LDC-Protocol.ps1')
 try {
+    . (Join-Path $PSScriptRoot 'LDC-Core.ps1')
+    . (Join-Path $PSScriptRoot 'LDC-Protocol.ps1')
     Initialize-LdcRegistry
     $line = [Console]::ReadLine()
     $request = if ($line -and $line.Length -le 32768) { $line | ConvertFrom-Json }

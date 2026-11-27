@@ -137,7 +137,7 @@ try {
 
   const core = path.join(management, 'LDC-Core.ps1');
   const originalCore = await fs.readFile(core, 'utf8');
-  const fixtureWorker = originalCore.replace('-WindowStyle Normal', '-WindowStyle Hidden')
+  const fixtureWorker = originalCore.replace("else { 'Normal' }", "else { 'Hidden' }")
     .replace('& $script:LdcAdapters.openai.launch $version $RunMode', [
       '$fixtureArgs = @("run", "--profile-file", $version.Profile, "--pid.file", $version.PidFile,',
       '    "--health.url-file", $version.HealthFile, "--log.file", $version.LogFile, "fixture")',

@@ -13,3 +13,6 @@ management/versions.json
 transports/openai/bin/
 engine/ripgrep/
 *.bak
+
+management/instance.local.json
+engine/proxy.local.json

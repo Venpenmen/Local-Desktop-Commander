@@ -9,3 +9,5 @@ Start from `feature/management-gui`. Bind actual and target state separately. Us
 ## Gemini web line
 
 Start from `feature/gemini-web`. First verify the web client's actual integration, authentication, supported transports and security model. Reuse MCP stdio and the public descriptor and settings contracts. Keep connectivity and credentials in a dedicated adapter. Start with an isolated fixture. No Gemini connection is implemented by M7-A.
+
+Both development lines use separate loopback instances. Follow [instance isolation](instance-isolation.md) for setup, verification and shared changes.

@@ -10,6 +10,9 @@ $script:PendingPath = Join-Path $script:DataDir 'pending.json'
 $script:ActivityPath = Join-Path $script:DataDir 'activity.log'
 $script:Utf8 = New-Object System.Text.UTF8Encoding($false)
 
+. (Join-Path $PSScriptRoot 'LDC-Instance.ps1')
+$script:Instance = Resolve-LdcInstance $script:Project
+. (Join-Path $PSScriptRoot 'LDC-LocalDev.ps1')
 $script:TaskPath = Join-Path $script:DataDir 'task.json'
 . (Join-Path $PSScriptRoot 'LDC-OpenAI.ps1')
 . (Join-Path $PSScriptRoot 'LDC-Extensions.ps1')
@@ -22,9 +25,17 @@ $script:LdcAdapters = [ordered]@{
     }
 }
 
-function Get-LdcTransportDescriptors($OpenAiHealth) {
+if ($script:Instance.transport -eq 'local-dev') {
+    $script:LdcAdapters.Clear()
+    $script:LdcAdapters['local-dev'] = @{
+        describe = { param($health) Get-LdcLocalDevDescriptor $health }
+        launch = { param($version,$mode) Invoke-LdcLocalDevLaunch $version $mode }
+    }
+}
+
+function Get-LdcTransportDescriptors($ObservedHealth) {
     foreach ($id in $script:LdcAdapters.Keys) {
-        $health = if ($id -eq 'openai') { $OpenAiHealth }
+        $health = if ($id -eq $script:Instance.transport) { $ObservedHealth }
         $descriptor = & $script:LdcAdapters[$id].describe $health
         if ($descriptor.id -cne $id -or $descriptor.contract -ne 1 -or !$descriptor.engineProtocol -or !$descriptor.capabilities) {
             throw 'INVALID_MANIFEST'
@@ -112,10 +123,10 @@ function Initialize-LdcRegistry {
         $script:Versions[$row.id] = [pscustomobject]@{
             Id=$row.id; Label=$row.label; Status=$row.status; Directory=$directory
             Launcher=Join-LdcPath $directory $row.launcher
-            Profile=Join-LdcPath $directory $row.profile
+            Profile=$(if ($script:Instance.transport -eq 'local-dev') { Join-LdcPath $directory 'proxy.local.json' } else { Join-LdcPath $directory $row.profile })
             Build=Join-LdcPath $directory $row.build
             PidFile=Join-Path $runtime 'tunnel.pid'; HealthFile=Join-Path $runtime 'health.url'
-            LogFile=Join-Path $runtime 'tunnel.log'
+            LogFile=Join-Path $runtime 'tunnel.log'; EndpointFile=Join-Path $runtime 'proxy-url.json'
             RootConfig=$(if ($row.rootConfig) { Join-LdcPath $directory $row.rootConfig })
             Validator=$(if ($row.rootValidator) { Join-LdcPath $directory $row.rootValidator })
             FixedRoot=$(if ($row.fixedRoot) { [IO.Path]::GetFullPath((Join-Path $script:Project $row.fixedRoot)) })
@@ -252,15 +263,29 @@ function Get-LdcObservation {
         Version=$null; Mode='unknown'; Health=$null; Url=$null}
     try {
         $args = @(Get-LdcTokens $process.CommandLine)
-        if ($args.Count -lt 2 -or $args[0] -ne $script:Tunnel -or $args[1] -ne 'run') { throw '进程启动标识不匹配。' }
-        $profile = Get-LdcFlag $args '--profile-file'
-        $versions = @($script:Versions.Values | Where-Object Profile -eq $profile)
+        if ($args[0] -ne $script:Tunnel) { throw '进程启动标识不匹配。' }
+        $local = $script:Instance.transport -eq 'local-dev'
+        if ($local) {
+            if ($args.Count -lt 3 -or $args[1] -ne 'dev' -or $args[2] -ne 'proxy' -or
+                (Get-LdcFlag $args '--listen') -ne '127.0.0.1:0' -or
+                (Get-LdcFlag $args '--health-listen-addr') -ne '127.0.0.1:0' -or
+                (Get-LdcFlag $args '--mcp-command') -ne 'node engine/stdio.mjs --tunnel') { throw '本地代理启动标识不匹配。' }
+            $endpoint = Get-LdcFlag $args '--url-file'
+            $versions = @($script:Versions.Values | Where-Object EndpointFile -eq $endpoint)
+        } else {
+            if ($args.Count -lt 2 -or $args[1] -ne 'run') { throw '进程启动标识不匹配。' }
+            $profile = Get-LdcFlag $args '--profile-file'
+            $versions = @($script:Versions.Values | Where-Object Profile -eq $profile)
+        }
         if ($versions.Count -ne 1) { throw '该隧道未登记，使用其原启动窗口管理。' }
         $version = $versions[0]
         $state.Version = $version
-        if ((Get-LdcFlag $args '--pid.file') -ne $version.PidFile -or
-            (Get-LdcFlag $args '--health.url-file') -ne $version.HealthFile -or
-            (Get-LdcFlag $args '--log.file') -ne $version.LogFile) {
+        $healthFlag = if ($local) { '--health-url-file' } else { '--health.url-file' }
+        if ((Get-LdcFlag $args $healthFlag) -ne $version.HealthFile) {
+            throw '健康检查路径与登记运行目录不符。'
+        }
+        if (!$local -and ((Get-LdcFlag $args '--pid.file') -ne $version.PidFile -or
+            (Get-LdcFlag $args '--log.file') -ne $version.LogFile)) {
             throw '进程参数与登记运行目录不符。'
         }
         # A missing engine or profile is recoverable. Validate the argument paths and runtime,
@@ -310,6 +335,7 @@ function Format-LdcMode {
 
 function Show-LdcStatus {
     param($Observation,[switch]$Detail)
+    Write-Host "实例：$($script:Instance.id) · $($script:Instance.transport)"
     try { $selection = Get-LdcSelection } catch { Write-Host ('选择记录：' + $_.Exception.Message) }
     if ($selection) {
         $v = $script:Versions[$selection.target.version]
@@ -392,6 +418,7 @@ function Set-LdcRoot {
         [IO.File]::Copy($Version.Validator,$validator)
         [IO.File]::WriteAllText($config,$Proposed,$script:Utf8)
         $normalized = Invoke-LdcRootProbe $validator
+        Assert-LdcInstanceRoot $normalized
         Write-Host "当前配置：$(Get-LdcConfiguredRoot $Version)"
         if (!(Confirm-LdcAction "将 $($Version.Label) 的文件授权目录改为 $normalized（重新启动后生效）")) { return $false }
         Write-LdcText $Version.RootConfig ($normalized + [Environment]::NewLine)
@@ -405,17 +432,27 @@ function Set-LdcRoot {
     }
 }
 
+function Assert-LdcInstanceRoot([string]$Path) {
+    if ($script:Instance.transport -ne 'local-dev') { return }
+    $workspace = Join-Path $script:Project 'engine/workspace'
+    Assert-LdcPlainPath $workspace
+    if ($Path -ne $workspace -and !$Path.StartsWith($workspace + '\', [StringComparison]::OrdinalIgnoreCase)) {
+        throw '测试实例仅可授权本工作区的 engine/workspace 或其子目录。'
+    }
+}
+
 function Assert-LdcLaunchable {
     param($Version)
     foreach ($path in $script:Tunnel,$Version.Launcher,$Version.Profile,$Version.Build) {
         Assert-LdcPlainPath $path
         if (!(Test-Path -LiteralPath $path -PathType Leaf)) { throw "缺少启动文件：$path" }
     }
+    if ($script:Instance.transport -eq 'local-dev') { $null = Get-LdcLocalDevDuration $Version }
     $null = Get-Command node -CommandType Application
     if ($Version.Validator) {
         Assert-LdcPlainPath $Version.Validator
         Assert-LdcPlainPath $Version.RootConfig
-        $null = Invoke-LdcRootProbe $Version.Validator
+        Assert-LdcInstanceRoot (Invoke-LdcRootProbe $Version.Validator)
     } elseif ($Version.FixedRoot -and !(Test-Path -LiteralPath $Version.FixedRoot -PathType Container)) {
         throw '固定授权目录不存在。'
     }
@@ -444,7 +481,8 @@ function Start-LdcWorker {
     param($Version,[string]$RunMode,[string]$LaunchToken)
     $args = @('-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File',('"{0}"' -f $script:ManagerFile),
         '-Action','Launch','-VersionId',$Version.Id,'-Mode',$RunMode,'-Token',$LaunchToken)
-    Start-Process -FilePath $script:Shell -ArgumentList $args -WorkingDirectory $Version.Directory -WindowStyle Normal -PassThru
+    $window = if ($script:Instance.transport -eq 'local-dev') { 'Hidden' } else { 'Normal' }
+    Start-Process -FilePath $script:Shell -ArgumentList $args -WorkingDirectory $Version.Directory -WindowStyle $window -PassThru
 }
 
 function Invoke-LdcWorker {
@@ -455,13 +493,18 @@ function Invoke-LdcWorker {
     $code = 1
     try {
         Assert-LdcLaunchable $version
+        Assert-LdcPlainPath $script:Instance.temporary
+        $null = [IO.Directory]::CreateDirectory($script:Instance.temporary)
+        $env:TEMP = $script:Instance.temporary
+        $env:TMP = $script:Instance.temporary
         Write-Host ("正在启动 {0} · {1}" -f $version.Label,(Format-LdcMode $RunMode))
 
         if ($RunMode -eq 'terminal') {
             Write-Host '终端命令具有当前 Windows 用户权限；文件授权目录仅约束文件工具。'
 
         }
-        & $script:LdcAdapters.openai.launch $version $RunMode
+        if ($script:Instance.transport -eq 'local-dev') { & $script:LdcAdapters['local-dev'].launch $version $RunMode }
+        else { & $script:LdcAdapters.openai.launch $version $RunMode }
         $code = $LASTEXITCODE
     } catch {
         Write-Host ('启动入口失败：' + $_.Exception.Message)
@@ -477,7 +520,7 @@ function Invoke-LdcWorker {
 }
 
 function Wait-LdcLauncherSlot {
-    if (!$script:Registry.launchMutex) { return }
+    if ($script:Instance.transport -eq 'local-dev' -or !$script:Registry.launchMutex) { return }
     $mutex = New-Object Threading.Mutex($false, [string]$script:Registry.launchMutex)
     $ready = $false
     try {
@@ -655,11 +698,7 @@ function Show-LdcLogs {
 }
 function Invoke-LdcLocked {
     param([scriptblock]$LockedAction)
-    $sha = [Security.Cryptography.SHA256]::Create()
-    try {
-        $key = [BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($script:Project.ToLowerInvariant()))).Replace('-','').Substring(0,24)
-    } finally { $sha.Dispose() }
-    $lock = New-Object Threading.Mutex($false, "Local\LDC-management-$key")
+    $lock = New-Object Threading.Mutex($false, "Local\LDC-management-$($script:Instance.key)")
     $locked = $false
     try {
         try { $locked = $lock.WaitOne(0) } catch [Threading.AbandonedMutexException] { $locked = $true }

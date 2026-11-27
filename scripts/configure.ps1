@@ -1,6 +1,8 @@
 ﻿param([string]$AuthorizedDirectory,[string]$TunnelId,[ValidateSet('files','terminal')][string]$Mode='files')
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
+. (Join-Path $root 'management/LDC-Instance.ps1')
+if ((Resolve-LdcInstance $root).transport -eq 'local-dev') { throw '测试实例不接受托管配置。' }
 $exe=Join-Path $root 'transports\openai\bin\tunnel-client.exe'
 if(@(Get-CimInstance Win32_Process -Filter "Name='tunnel-client.exe'" | Where-Object ExecutablePath -eq $exe).Count){throw '先停止此部署的隧道，再修改配置。'}
 

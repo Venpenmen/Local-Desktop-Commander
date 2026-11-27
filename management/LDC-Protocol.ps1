@@ -5,8 +5,9 @@ function Get-LdcConfiguration {
     foreach ($version in ($script:Versions.Values | Sort-Object Id)) {
         $roots[$version.Id] = Get-LdcConfiguredRoot $version
     }
-    $openai = Get-LdcOpenAiSettings
-    $config = [ordered]@{schema=1; target=$selection.target; rollback=$selection.rollback; roots=$roots; proxy=$openai.proxy}
+    $openai = $null
+    if ($script:Instance.transport -eq 'openai') { $openai = Get-LdcOpenAiSettings }
+    $config = [ordered]@{schema=1; instance=$script:Instance.key; target=$selection.target; rollback=$selection.rollback; roots=$roots; proxy=$openai.proxy}
     $sha = [Security.Cryptography.SHA256]::Create()
     try {
         $revision = [BitConverter]::ToString($sha.ComputeHash($script:Utf8.GetBytes(($config | ConvertTo-Json -Compress -Depth 8)))).Replace('-','').ToLowerInvariant()
@@ -22,6 +23,7 @@ function Get-LdcSnapshot {
     $expected = $null
     switch ($actual.Mode) { files { $expected = $actual.Version.FilesTools }; terminal { $expected = $actual.Version.TerminalTools } }
     [ordered]@{
+        instance=@{id=$script:Instance.id; key=$script:Instance.key; transport=$script:Instance.transport}
         observedUtc=[datetime]::UtcNow.ToString('o')
         actual=@{state=$state; version=$actual.Version.Id; mode=$actual.Mode; pid=$actual.Pid; birth=$actual.Birth}
         configuration=Get-LdcConfiguration
@@ -116,8 +118,16 @@ function Invoke-LdcRequest {
     try {
         if ($null -eq $id -or $operation -cnotmatch '^[a-z.]+$') { throw 'INVALID_REQUEST' }
         if ($Request.protocol -cne 1) { throw 'UNSUPPORTED_PROTOCOL' }
+        if ($Request.instance -and $Request.instance -cne $script:Instance.key) { throw 'INSTANCE_MISMATCH' }
+        if ($script:Instance.transport -eq 'local-dev' -and $operation -in 'network.set','network.prompt','credential.configure','credential.forget','diagnose') {
+            throw 'UNSUPPORTED_ON_INSTANCE'
+        }
+        $reply.instance = $script:Instance.key
         $reply.result = switch ($operation) {
-            capabilities { @{protocol=1; operations=@('capabilities','state','config.get','versions','events','logs','task.get','extensions','diagnose','start','stop','restart','rollback','select','root.set','network.set'); transports=@(Get-LdcTransportDescriptors $null)} }
+            capabilities { $operations=@('capabilities','state','config.get','versions','events','logs','task.get','extensions','diagnose','start','stop','restart','rollback','select','root.set','network.set')
+                if ($script:Instance.transport -eq 'local-dev') { $operations = @($operations | Where-Object { $_ -notin 'diagnose','network.set' }) }
+                @{protocol=1; operations=$operations; transports=@(Get-LdcTransportDescriptors $null)}
+            }
             state { Get-LdcSnapshot }
             'config.get' { Get-LdcConfiguration }
             versions { ,@($script:Versions.Values | Sort-Object Id | Select-Object Id,Label,Status,FilesTools,TerminalTools) }
@@ -141,7 +151,7 @@ function Invoke-LdcRequest {
         $reply.ok = $true
     } catch {
         $code = $_.Exception.Message
-        if ($code -cnotmatch '^(INVALID_REQUEST|INVALID_MANIFEST|INVALID_ARGUMENT|UNSUPPORTED_PROTOCOL|UNKNOWN_OPERATION|CONFIRMATION_REQUIRED|REVISION_CONFLICT|BUSY|INTERACTIVE_REQUIRED|TASK_NOT_FOUND|OPERATION_FAILED)$') { $code = 'OPERATION_FAILED' }
+        if ($code -cnotmatch '^(INSTANCE_MISMATCH|UNSUPPORTED_ON_INSTANCE|INVALID_REQUEST|INVALID_MANIFEST|INVALID_ARGUMENT|UNSUPPORTED_PROTOCOL|UNKNOWN_OPERATION|CONFIRMATION_REQUIRED|REVISION_CONFLICT|BUSY|INTERACTIVE_REQUIRED|TASK_NOT_FOUND|OPERATION_FAILED)$') { $code = 'OPERATION_FAILED' }
         $reply.error = @{code=$code; message=$script:LdcErrors[$code]}
         if ($script:LdcRequestTaskId) { $reply.error.taskId = $script:LdcRequestTaskId }
         if ($Interactive) { Write-Host $_.Exception.Message }
@@ -155,6 +165,8 @@ function Invoke-LdcRequest {
 }
 
 $script:LdcErrors = @{
+    INSTANCE_MISMATCH='The request was addressed to a different instance.'
+    UNSUPPORTED_ON_INSTANCE='This instance uses a loopback transport without hosted credentials or proxy settings.'
     INVALID_REQUEST='A valid request ID and operation are required.'
     INVALID_MANIFEST='An extension manifest is incompatible or invalid.'
     INVALID_ARGUMENT='The operation arguments are invalid.'
