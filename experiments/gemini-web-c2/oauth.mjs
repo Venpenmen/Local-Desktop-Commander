@@ -20,6 +20,7 @@ export function createProbeOAuth({ issuer, publishApproval, takeApproval, serveM
       ticket + '</code></p><p>Copy the transaction to your local operator. This page updates automatically.</p>');
   }
   const tokens = new Map();
+  const refreshGrants = new Map();
   const get = (map, key) => {
     const entry = map.get(key);
     if (entry?.expiresAt > now()) return entry;
@@ -38,6 +39,14 @@ export function createProbeOAuth({ issuer, publishApproval, takeApproval, serveM
     if (grant?.clientId !== client.client_id) throw new InvalidGrantError('Invalid authorization code');
     return grant;
   };
+  function issueAccess(refreshToken, grant) {
+    const token = random();
+    const lifetime = Math.min(tokenSeconds, grant.expiresAt - now());
+    if (lifetime <= 0) throw new InvalidGrantError('Expired refresh grant');
+    add(tokens, token, { token, refreshToken, clientId: grant.clientId, scopes: ['probe'], resource, expiresAt: now() + lifetime });
+    log({ kind: 'oauth', event: 'access-issued' });
+    return { access_token: token, token_type: 'Bearer', expires_in: lifetime, scope: 'probe', refresh_token: refreshToken };
+  }
   const provider = {
     clientsStore: {
       getClient: id => {
@@ -77,20 +86,29 @@ export function createProbeOAuth({ issuer, publishApproval, takeApproval, serveM
       assertResource(requestedResource);
       if (redirectUri !== grant.redirectUri) throw new InvalidGrantError('Redirect URI mismatch');
       codes.delete(code);
-      const token = random();
-      add(tokens, token, { token, clientId: client.client_id, scopes: ['probe'], resource, expiresAt: now() + tokenSeconds });
-      log({ kind: 'oauth', event: 'access-issued' });
-      return { access_token: token, token_type: 'Bearer', expires_in: tokenSeconds, scope: 'probe' };
+      const refreshToken = random();
+      const authorization = { clientId: client.client_id, expiresAt: now() + 1800 };
+      add(refreshGrants, refreshToken, authorization);
+      return issueAccess(refreshToken, authorization);
     },
-    async exchangeRefreshToken() { throw new InvalidGrantError('This experiment does not issue refresh tokens'); },
+    async exchangeRefreshToken(client, refreshToken, scopes, requestedResource) {
+      const grant = get(refreshGrants, refreshToken);
+      if (grant?.clientId !== client.client_id) throw new InvalidGrantError('Invalid refresh grant');
+      assertResource(requestedResource);
+      if (scopes?.some(scope => scope !== 'probe')) throw new InvalidScopeError('Only probe scope is available');
+      return issueAccess(refreshToken, grant);
+    },
     async verifyAccessToken(token) {
       const auth = get(tokens, token);
-      if (!auth) throw new InvalidTokenError('Unknown or expired token');
+      if (!auth || !get(refreshGrants, auth.refreshToken) || getManualClient()?.client_id !== auth.clientId) {
+        throw new InvalidTokenError('Unknown, revoked or expired token');
+      }
       return auth;
     },
     async revokeToken(client, request) {
-      if (get(tokens, request.token)?.clientId === client.client_id) {
-        tokens.delete(request.token);
+      const refreshToken = get(tokens, request.token)?.refreshToken ?? request.token;
+      if (get(refreshGrants, refreshToken)?.clientId === client.client_id) {
+        refreshGrants.delete(refreshToken);
         log({ kind: 'oauth', event: 'access-revoked' });
       }
     },
@@ -146,7 +164,7 @@ export function createProbeOAuth({ issuer, publishApproval, takeApproval, serveM
     res.json({ issuer: issuer.href, authorization_endpoint: new URL('/authorize', issuer),
       token_endpoint: new URL('/token', issuer), registration_endpoint: new URL('/register', issuer),
       revocation_endpoint: new URL('/revoke', issuer), response_types_supported: ['code'],
-      grant_types_supported: ['authorization_code'], code_challenge_methods_supported: ['S256'],
+      grant_types_supported: ['authorization_code', 'refresh_token'], code_challenge_methods_supported: ['S256'],
       token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post', 'none'], scopes_supported: ['probe'] });
   });
   app.get('/.well-known/oauth-protected-resource', (_req, res) => res.json({

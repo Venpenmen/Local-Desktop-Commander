@@ -120,7 +120,15 @@ test('OAuth metadata, exact redirect, consent, PKCE, audience, expiry and revoca
     assert.equal((await basicForm('/token', tokenGrant)).status, 401);
     const issued = await basicForm('/token', basicGrant);
     assert.equal(issued.status, 200);
-    const { access_token: token } = await issued.json();
+    const { access_token: token, refresh_token: refreshToken } = await issued.json();
+    assert(refreshToken);
+    const refresh = { grant_type: 'refresh_token', refresh_token: refreshToken, resource };
+    assert.equal((await basicForm('/token', { ...refresh, scope: 'files.read' })).status, 400);
+    const renewed = await basicForm('/token', refresh);
+    assert.equal(renewed.status, 200);
+    const refreshed = await renewed.json();
+    assert.notEqual(refreshed.access_token, token);
+    assert.equal(refreshed.refresh_token, refreshToken);
     assert(token);
     const auth = { Authorization: 'Bearer ' + token };
     if (external) {
@@ -133,6 +141,8 @@ test('OAuth metadata, exact redirect, consent, PKCE, audience, expiry and revoca
       assert(logs.trim().split('\n').map(JSON.parse).some(item => item.kind === 'result' && item.authorized &&
         item.source === 'self-test' && item.callId === result.structuredContent.callId));
       assert.equal((await basicForm('/revoke', { token })).status, 200);
+      assert.equal((await basicForm('/token', refresh)).status, 400);
+      assert.equal((await request('/mcp', { headers: { Authorization: 'Bearer ' + refreshed.access_token } })).status, 401);
     } else {
       assert.equal((await request('/mcp', { headers: auth })).status, 204);
       await delay(2100);
@@ -140,7 +150,7 @@ test('OAuth metadata, exact redirect, consent, PKCE, audience, expiry and revoca
     assert.equal((await request('/mcp', { headers: auth })).status, 401);
     assert.equal((await form('/token', tokenGrant)).status, 400);
     checks.push('metadata', 'uncredentialed and invalid bearer rejection', 'registration and exact redirect',
-      'local approval binding, one-time consumption and S256 PKCE', 'wrong target and scope rejection', 'one-use authorization code',
+      'local approval binding, one-time consumption and S256 PKCE', 'wrong target and scope rejection', 'one-use authorization code', 'bounded refresh grant',
       external ? 'protected live MCP call and token revocation' : 'token expiry');
   } finally {
     await client?.close();
