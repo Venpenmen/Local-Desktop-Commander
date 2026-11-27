@@ -47,7 +47,6 @@ test('Chromium submits an actual URL-encoded consent form with a verifiable orig
       code_challenge: challenge, code_challenge_method: 'S256',
     });
     const page = await browser.newPage({ extraHTTPHeaders: { 'x-ldc-probe-test': 'codex' } });
-    await page.route(callback + '**', route => route.abort());
     async function submit(expected, key) {
       await page.locator('input[name="approval"]').fill(key);
       const response = page.waitForResponse(response => response.url() === issuer.origin + '/consent');
@@ -76,6 +75,10 @@ test('Chromium submits an actual URL-encoded consent form with a verifiable orig
     assert((await observed()).some(event => event.reason === 'approval-rejected'));
     await page.goto(authorize);
     await page.locator('input[name="approval"]').fill(approvalKey);
+    const callbackRequest = page.waitForRequest(request => {
+      const url = new URL(request.url());
+      return url.origin + url.pathname === callback && url.searchParams.has('code');
+    }, { timeout: 7000 });
     const sent = page.waitForRequest(request => request.url() === issuer.origin + '/consent');
     await page.locator('button').click().catch(error => {
       if (!String(error).includes('ERR_FAILED')) throw error;
@@ -86,6 +89,8 @@ test('Chromium submits an actual URL-encoded consent form with a verifiable orig
     }
     assert((await observed()).some(event => event.route === '/consent' && event.status === 303));
     assert((await observed()).some(event => event.event === 'consent-approved'));
+    await page.waitForURL(url => url.origin === new URL(callback).origin, { timeout: 5000 });
+    assert.equal((await callbackRequest).method(), 'GET');
   } finally {
     await browser.close();
     if (server) server.close();

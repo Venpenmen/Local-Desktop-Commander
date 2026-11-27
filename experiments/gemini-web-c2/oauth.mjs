@@ -64,7 +64,12 @@ export function createProbeOAuth({ issuer, approvalKey, serveMcp, log, getManual
       add(pending, ticket, { ...params, clientId: client.client_id, expiresAt: now() + 300 });
       // Chromium uses Origin: null for form POSTs initiated by a no-referrer page.
       // Send only the document origin, never the authorization query or ticket.
-      res.set('Referrer-Policy', 'origin').type('html').send('<!doctype html><meta charset="utf-8"><title>Authorize LDC Gemini Probe</title>' +
+      // Chromium applies form-action to the redirect after a form POST.
+      // The registered callback is already validated and bound to this grant.
+      const callbackOrigin = new URL(params.redirectUri).origin;
+      res.set({ 'Referrer-Policy': 'origin',
+        'Content-Security-Policy': "default-src 'none'; form-action 'self' " + callbackOrigin +
+          "; base-uri 'none'; frame-ancestors 'none'" }).type('html').send('<!doctype html><meta charset="utf-8"><title>Authorize LDC Gemini Probe</title>' +
         '<h1>Authorize LDC Gemini Probe</h1><p>Allow this connection to call the read-only random nonce probe.</p>' +
         '<form method="post" action="/consent"><input type="hidden" name="ticket" value="' + ticket +
         '"><label>Local approval key <input name="approval" type="password" required autocomplete="off"></label>' +
@@ -140,6 +145,8 @@ export function createProbeOAuth({ issuer, approvalKey, serveMcp, log, getManual
     redirect.searchParams.set('code', code);
     if (grant.state !== undefined) redirect.searchParams.set('state', grant.state);
     log({ kind: 'oauth', event: 'consent-approved' });
+    res.set('Content-Security-Policy', "default-src 'none'; form-action 'self' " + redirect.origin +
+      "; base-uri 'none'; frame-ancestors 'none'");
     res.redirect(303, redirect.href);
   });
   const authRouter = mcpAuthRouter({ provider, issuerUrl: issuer, resourceServerUrl: resource,
