@@ -89,7 +89,7 @@ internal static class Program
                     "minimum window dimensions");
                 var layout=(DockPanel)window.Content;
                 var tabs=layout.Children.OfType<TabControl>().Single();
-                Check(tabs.Items.Count==5,"five-page overview connection tools logs settings navigation");
+                Check(tabs.Items.Count==6,"six-page overview connection tools logs versions settings navigation");
                 var themeSelector=(ComboBox)window.FindName("ThemeSelector")!;
                 Check(themeSelector.Items.Count==3 && themeSelector.IsEnabled,
                     "light dark system theme choices are accessible");
@@ -130,6 +130,32 @@ internal static class Program
                 logSources.SelectedIndex=0;
                 Check(logModel.Status.Contains("/200"),"log center displays bounded cache");
                 tabs.SelectedIndex=4;
+                await Task.Delay(150);
+                var versionModel=(B5Versions)typeof(MainWindow).GetField("versionModel",
+                    System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!
+                    .GetValue(window)!;
+                for(var i=0;i<65 && !versionModel.Fresh;i++)await Task.Delay(200);
+                Check(versionModel.Fresh && versionModel.Entries.Count>0 &&
+                      versionModel.TargetId=="p6",
+                    "B5 version page loads real registered P6 from shared manager");
+                Check(versionModel.Entries.Count==1 &&
+                      ((Button)window.FindName("VersionRollbackButton")!).IsEnabled==versionModel.HasDistinctRollback &&
+                      (!versionModel.HasDistinctRollback || versionModel.RollbackNotice.Contains("工具模式")),
+                    "B5 one-P6 registry supports only genuine mode rollback, not fake cross-version rollback");
+                Check(((ListBox)window.FindName("VersionList")!).Items.Count==versionModel.Entries.Count,
+                    "B5 version list renders real API metadata");
+                var versionToggle=(System.Windows.Controls.Primitives.ToggleButton)window.FindName("VersionDetailsToggle")!;
+                var versionPanel=(FrameworkElement)window.FindName("VersionDetailsPanel")!;
+                Check(versionPanel.Visibility==Visibility.Collapsed,
+                    "B5 version technical metadata initially collapsed");
+                versionToggle.IsChecked=true;
+                Check(versionPanel.Visibility==Visibility.Visible && versionModel.Revision?.Length==64,
+                    "B5 registered version details show real config revision on request");
+                versionToggle.IsChecked=false;
+                Check(versionPanel.Visibility==Visibility.Collapsed,
+                    "B5 version details collapse without a management mutation");
+                Screenshot(layout,"gui-b5-versions-light.png");
+                tabs.SelectedIndex=5;
                 await Task.Delay(180);
                 Screenshot(layout,"gui-settings-100.png");
                 var settingsToggle=(System.Windows.Controls.Primitives.ToggleButton)
@@ -180,6 +206,9 @@ internal static class Program
                 Screenshot(layout,"gui-b4-logs-dark.png");
                 tabs.SelectedIndex=4;
                 await Task.Delay(130);
+                Screenshot(layout,"gui-b5-versions-dark.png");
+                tabs.SelectedIndex=5;
+                await Task.Delay(130);
                 Screenshot(layout,"gui-b31-settings-dark.png");
                 themeSelector.SelectedValue="Light";
                 Check(!ThemeManager.IsDark &&
@@ -220,7 +249,7 @@ internal static class Program
                 await Task.Delay(160);
                 Screenshot(layout,"gui-b31-overview-125.png",1.25);
                 layout.LayoutTransform=Transform.Identity;
-                tabs.SelectedIndex=4;
+                tabs.SelectedIndex=5;
                 for(var i=0;i<90 && !vm.ProbeFresh;i++)await Task.Delay(400);
                 Check(vm.ProbeFresh && vm.ActualToolCount==vm.ExpectedToolCount,
                     "actual MCP count shown from live discovery");

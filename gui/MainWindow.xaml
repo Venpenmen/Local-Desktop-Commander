@@ -571,6 +571,128 @@
             <TabItem>
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="▣" FontSize="17" Width="28"/>
+                        <TextBlock Text="版本管理" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </TabItem.Header>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="VersionPanel" Margin="20,18,20,8">
+                        <DockPanel Margin="0,0,0,14">
+                            <Button DockPanel.Dock="Right" Content="刷新版本" Click="VersionsRefresh_Click"
+                                    Margin="8,0,0,0"/>
+                            <TextBlock Text="版本管理" Style="{StaticResource PageTitle}" VerticalAlignment="Center"/>
+                        </DockPanel>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="实际运行版本 · 读取自管理核心" Style="{StaticResource Hint}"/>
+                                <TextBlock Text="{Binding ActualHeadline}" FontSize="23" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource Accent}" Margin="0,7,0,5"/>
+                                <TextBlock Text="{Binding TargetHeadline, StringFormat=目标配置：{0}}" FontSize="13"/>
+                                <TextBlock Text="{Binding Status}" Style="{StaticResource Hint}" Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="已注册版本" Style="{StaticResource SectionTitle}"/>
+                                <TextBlock Text="仅来自共享 versions API；已注册不等于文件已通过完整性校验。"
+                                           Style="{StaticResource Hint}" Margin="0,6,0,9"/>
+                                <ListBox x:Name="VersionList" ItemsSource="{Binding Entries}"
+                                         Background="Transparent" BorderThickness="0" MinHeight="75"
+                                         Foreground="{DynamicResource TextPrimary}"
+                                         MaxHeight="160" HorizontalContentAlignment="Stretch"
+                                         SelectionChanged="VersionSelection_Changed">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="4,5">
+                                                <TextBlock Text="{Binding Display}" FontWeight="SemiBold" FontSize="14"/>
+                                                <TextBlock Text="{Binding Tools}" FontSize="12"
+                                                           Foreground="{DynamicResource TextSecondary}" Margin="0,3,0,0"/>
+                                                <TextBlock Text="{Binding Status}" FontSize="12"
+                                                           Foreground="{DynamicResource TextSecondary}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <ToggleButton x:Name="VersionDetailsToggle" Style="{StaticResource DetailToggle}"
+                                              Content="版本技术详情 ▼" Checked="VersionDetails_Changed"
+                                              Unchecked="VersionDetails_Changed"/>
+                                <StackPanel x:Name="VersionDetailsPanel" Visibility="Collapsed" Margin="0,5,0,8">
+                                    <TextBlock Text="{Binding Revision, StringFormat=配置 Revision：{0}}"
+                                               Style="{StaticResource Hint}"/>
+                                    <TextBlock Text="{Binding InstallationNotice}" Style="{StaticResource Hint}"
+                                               Margin="0,5,0,0"/>
+                                </StackPanel>
+                                <TextBlock x:Name="VersionSelectionHint" Text="选择已注册版本后可执行受控切换。"
+                                           Style="{StaticResource Hint}" Margin="0,8,0,10"/>
+                                <WrapPanel>
+                                    <Button x:Name="VersionSelectButton" Content="切换至选中版本"
+                                            Click="VersionSelect_Click" IsEnabled="False"
+                                            Style="{StaticResource PrimaryButton}"/>
+                                    <Button Content="查看连接诊断" Click="VersionDiagnostics_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="版本回滚" Style="{StaticResource SectionTitle}"/>
+                                <TextBlock Text="{Binding RollbackHeadline, StringFormat=记录的候选：{0}}" Margin="0,7,0,6"/>
+                                <TextBlock Text="{Binding RollbackNotice}" Style="{StaticResource Hint}" Margin="0,0,0,10"/>
+                                <Button x:Name="VersionRollbackButton" Content="执行已有回滚目标"
+                                        HorizontalAlignment="Left" Click="VersionRollback_Click"
+                                        IsEnabled="False"/>
+                                <TextBlock Text="若回滚失败或状态不明，请先打开连接诊断、查看日志，再通过现有 TUI/CLI 恢复；不会自动清理旧版本。"
+                                           Style="{StaticResource Hint}" Margin="0,9,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="检查上游发行版" Style="{StaticResource SectionTitle}"/>
+                                <TextBlock Text="仅检查 Venpenmen/Local-Desktop-Commander 官方 GitHub Releases，不自动下载或升级。"
+                                           Style="{StaticResource Hint}" Margin="0,7,0,10"/>
+                                <WrapPanel>
+                                    <Button Content="检查发行更新" Click="VersionCheckRelease_Click"
+                                            Style="{StaticResource PrimaryButton}"/>
+                                    <Button x:Name="VersionOpenRelease" Content="查看发行页面"
+                                            Click="VersionOpenRelease_Click" IsEnabled="False"/>
+                                </WrapPanel>
+                                <TextBlock x:Name="VersionReleaseStatus" Text="尚未检查发行版"
+                                           FontSize="13" TextWrapping="Wrap" Margin="0,9,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="安装包离线预检查" Style="{StaticResource SectionTitle}"/>
+                                <TextBlock Text="只读取本地 ZIP 并计算 SHA-256、检查路径与结构；不会解压、安装或修改实例。"
+                                           Style="{StaticResource Hint}" Margin="0,7,0,10"/>
+                                <TextBlock Text="可信来源提供的 SHA-256（可留空）" FontSize="13"/>
+                                <TextBox x:Name="VersionExpectedHash" Margin="0,5,0,9" MaxLength="64"
+                                         AutomationProperties.Name="可信 SHA-256 摘要"/>
+                                <WrapPanel>
+                                    <Button x:Name="VersionPreflightButton" Content="选择 ZIP 并预检"
+                                            Click="VersionPreflight_Click"/>
+                                    <Button x:Name="VersionCancelPreflight" Content="取消预检"
+                                            Click="VersionCancelPreflight_Click" IsEnabled="False"/>
+                                </WrapPanel>
+                                <ProgressBar x:Name="VersionPreflightProgress" Minimum="0" Maximum="100"
+                                             Height="6" Margin="0,10,0,5"/>
+                                <TextBlock x:Name="VersionPreflightStatus" Style="{StaticResource Hint}"
+                                           Text="尚未选择候选包" Margin="0,5,0,0"/>
+                                <TextBlock Text="{Binding InstallationNotice}" Style="{StaticResource Hint}"
+                                           Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
                         <TextBlock Text="⚙" FontSize="17" Width="28"/>
                         <TextBlock Text="运行设置" VerticalAlignment="Center"/>
                     </StackPanel>

@@ -27,6 +27,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = vm;
         InitializeB4();
+        InitializeB5();
         ThemeSelector.SelectedValuePath = "Tag";
         ThemeSelector.SelectedValue = ThemeManager.Choice.ToString();
         var args = Environment.GetCommandLineArgs();
@@ -61,8 +62,9 @@ public partial class MainWindow : Window
         {
             await Refresh(false);
             if (Pages.SelectedIndex == 3 && logCenter.Follow) await FetchLogsAsync();
+            if (Pages.SelectedIndex == 4) await RefreshVersions(false);
         };
-        Closed += (_, _) => { closing = true; timer.Stop(); };
+        Closed += (_, _) => { closing = true; timer.Stop(); packageCheckCancel?.Cancel(); };
     }
 
     private void ThemeSelector_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
@@ -91,12 +93,14 @@ public partial class MainWindow : Window
             {
                 "OverviewDetailsToggle" => "收起运行详情 ▲",
                 "ConnectionDetailsToggle" => "收起高级诊断 ▲",
+                "VersionDetailsToggle" => "收起版本详情 ▲",
                 _ => "收起配置详情 ▲"
             }
             : toggle.Name switch
             {
                 "OverviewDetailsToggle" => "详细运行信息 ▼",
                 "ConnectionDetailsToggle" => "高级诊断 / 传输详情 ▼",
+                "VersionDetailsToggle" => "版本技术详情 ▼",
                 _ => "目标配置与回滚信息 ▼"
             };
     }

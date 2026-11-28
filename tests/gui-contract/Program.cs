@@ -225,4 +225,104 @@ vm.Apply(state);
 Require(!vm.CanManageHosted && vm.ProxyStatus.Contains("不使用") &&
     vm.CredentialStatus.Contains("不使用"),"B4 local-dev refuses hosted proxy/credential features");
 Console.WriteLine("B4 GUI CONTRACT TESTS PASSED");
+// B5: registered versions are obtained only from the shared management API.
+var registry=new B5Versions();
+registry.Apply(versions,state);
+Require(registry.Fresh && registry.Entries.Count>0 && registry.TargetId=="p6",
+    "B5 reads true registered versions and target");
+Require(registry.ActualId=="p6" && registry.InstanceKey==key,
+    "B5 actual version is bound to verified instance key");
+Require(registry.Entries.Count==1 && (registry.HasDistinctRollback
+    ? registry.RollbackNotice.Contains("工具模式")
+    : registry.RollbackNotice.Contains("暂无")),
+    "B5 single P6 registry distinguishes valid mode-only rollback from cross-version rollback");
+Require(registry.InstallationNotice.Contains("未提供安装"),
+    "B5 version installer explicitly requires missing public manager API");
+using(var emptyVersions=JsonDocument.Parse("[]"))
+{
+    try {registry.Apply(emptyVersions.RootElement,state);throw new Exception("empty registry accepted");}
+    catch(InvalidDataException) { Console.WriteLine("PASS B5 empty registry refused"); }
+}
+var duplicated="[{\"Id\":\"p6\",\"Label\":\"P6\",\"Status\":\"stable\",\"FilesTools\":14,\"TerminalTools\":21}," +
+               "{\"Id\":\"p6\",\"Label\":\"clone\",\"Status\":\"stable\",\"FilesTools\":14,\"TerminalTools\":21}]";
+using(var duplicates=JsonDocument.Parse(duplicated))
+{
+    try {registry.Apply(duplicates.RootElement,state);throw new Exception("duplicate registry accepted");}
+    catch(InvalidDataException) {Console.WriteLine("PASS B5 duplicated version refused");}
+}
+var revised=System.Text.Json.Nodes.JsonNode.Parse(state.GetRawText())!;
+revised["configuration"]!["rollback"]!["mode"]="files";
+revised["configuration"]!["target"]!["mode"]="terminal";
+using(var revisedDoc=JsonDocument.Parse(revised.ToJsonString()))
+{
+    registry.Apply(versions,revisedDoc.RootElement);
+    Require(registry.HasDistinctRollback && registry.RollbackNotice.Contains("工具模式"),
+        "B5 one-version rollback correctly identified as mode-only, not version upgrade");
+}
+registry.Apply(versions,state);
+foreach(var v in new[]{
+    ("v1.2.0","v1.1.9",1),("v1.0.0","v1.0.0",0),
+    ("v1.2.0-rc.1","v1.2.0",-1),("v1.2.0-rc.2","v1.2.0-rc.1",1),
+    ("v1.2.0-rc.1","v1.2.0-beta.8",1),("v1.2.0+build.2","v1.2.0",0)
+})
+{
+    Require(Math.Sign(B5ReleaseFeed.CompareTags(v.Item1,v.Item2))==v.Item3,
+        "B5 semantic release comparison "+v.Item1+" vs "+v.Item2);
+}
+try {B5ReleaseFeed.CompareTags("P6","v1.0.0");throw new Exception("P6 compared as release");}
+catch(ArgumentException){Console.WriteLine("PASS B5 internal engine P6 cannot be compared to release semver");}
+
+var zipRoot=Path.Combine(workspace,"test-runtime","b5-package-contract");
+Directory.CreateDirectory(zipRoot);
+var goodZip=Path.Combine(zipRoot,"safe.zip");
+void MakeZip(string where, params (string Path, string Content, bool Symlink)[] entries)
+{
+    using var f=File.Create(where);
+    using var z=new System.IO.Compression.ZipArchive(f,System.IO.Compression.ZipArchiveMode.Create);
+    foreach(var item in entries)
+    {
+        var e=z.CreateEntry(item.Path);
+        if(item.Symlink)e.ExternalAttributes=unchecked((int)0xA0000000);
+        using var w=new StreamWriter(e.Open()); w.Write(item.Content);
+    }
+}
+try
+{
+    MakeZip(goodZip,("manifest.json","{\"version\":\"fixture\"}",false),
+        ("bin/engine.exe","harmless synthetic fixture bytes",false));
+    var sha=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+        await File.ReadAllBytesAsync(goodZip))).ToLowerInvariant();
+    var verified=await B5PackageInspector.InspectAsync(goodZip,sha,CancellationToken.None);
+    Require(verified.ExpectedMatched && verified.Entries==2 && verified.Sha256==sha,
+        "B5 local ZIP synthetic SHA-256 verified with explicit expected digest");
+    var unknown=await B5PackageInspector.InspectAsync(goodZip,null,CancellationToken.None);
+    Require(!unknown.ExpectedMatched && unknown.Description.Contains("尚未提供可信"),
+        "B5 checksum-only scan never claims independent trust");
+    try{await B5PackageInspector.InspectAsync(goodZip,new string('0',64),CancellationToken.None);
+        throw new Exception("wrong sha accepted");}
+    catch(InvalidDataException){Console.WriteLine("PASS B5 invalid SHA-256 rejected");}
+    try{await B5PackageInspector.InspectAsync(goodZip,"invalid",CancellationToken.None);
+        throw new Exception("malformed sha accepted");}
+    catch(InvalidDataException){Console.WriteLine("PASS B5 malformed SHA-256 rejected");}
+    var evil=Path.Combine(zipRoot,"traversal.zip");
+    MakeZip(evil,("../escaped.txt","bad",false));
+    try{await B5PackageInspector.InspectAsync(evil,null,CancellationToken.None);
+        throw new Exception("ZipSlip accepted");}
+    catch(InvalidDataException){Console.WriteLine("PASS B5 zip path traversal refused");}
+    var link=Path.Combine(zipRoot,"symlink.zip");
+    MakeZip(link,("bin/link","target",true));
+    try{await B5PackageInspector.InspectAsync(link,null,CancellationToken.None);
+        throw new Exception("symlink accepted");}
+    catch(InvalidDataException){Console.WriteLine("PASS B5 ZIP symbolic link refused");}
+    var duplicate=Path.Combine(zipRoot,"duplicate.zip");
+    MakeZip(duplicate,("Bin/A.txt","one",false),("bin/a.txt","two",false));
+    try{await B5PackageInspector.InspectAsync(duplicate,null,CancellationToken.None);
+        throw new Exception("conflicting entries accepted");}
+    catch(InvalidDataException){Console.WriteLine("PASS B5 duplicate and case-conflicting ZIP paths refused");}
+    try{await B5PackageInspector.InspectAsync(goodZip,null,new CancellationToken(true));
+        throw new Exception("cancellation ignored");}
+    catch(OperationCanceledException){Console.WriteLine("PASS B5 inspection cancel prevents ongoing work");}
+}
+finally {Directory.Delete(zipRoot,true);}
+Console.WriteLine("B5 GUI CONTRACT TESTS PASSED");
 Console.WriteLine("GUI CONTRACT TESTS PASSED");
