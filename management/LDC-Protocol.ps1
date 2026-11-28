@@ -68,7 +68,7 @@ function Invoke-LdcMutation {
     if (!$Interactive -and !$Arguments.confirmed) { throw 'CONFIRMATION_REQUIRED' }
     Invoke-LdcLocked {
         $selection = Get-LdcSelection
-        if ($Operation -in 'select','root.set','access.set','network.set') {
+        if ($Operation -in 'select','root.set','access.set','network.set','version.install','version.remove','version.activate') {
             if ((!$Interactive -or $Arguments.revision) -and $Arguments.revision -cne (Get-LdcConfiguration).revision) { throw 'REVISION_CONFLICT' }
         }
         $owner = Get-LdcProcess $PID
@@ -107,6 +107,9 @@ function Invoke-LdcMutation {
                     if (!(Set-LdcAccessMode $script:Versions[$Arguments.version] $Arguments.mode)) { $task.state = 'cancelled' }
                 }
                 'network.set' { Set-LdcOpenAiProxy $Arguments.proxy }
+                'version.install' { $task.details = Install-LdcVersionPackage $Arguments }
+                'version.remove' { $task.details = Remove-LdcVersionPackage ([string]$Arguments.id) }
+                'version.activate' { $task.details = Invoke-LdcManagedActivation $Arguments }
                 'credential.configure' { & $script:LdcOpenAiHelper -Action Configure }
                 'credential.forget' { & $script:LdcOpenAiHelper -Action Forget }
             }
@@ -138,13 +141,14 @@ function Invoke-LdcRequest {
         }
         $reply.instance = $script:Instance.key
         $reply.result = switch ($operation) {
-            capabilities { $operations=@('capabilities','state','config.get','versions','events','logs','task.get','extensions','diagnose','start','stop','restart','rollback','select','root.set','access.set','network.set')
+            capabilities { $operations=@('capabilities','state','config.get','versions','events','logs','task.get','extensions','diagnose','start','stop','restart','rollback','select','root.set','access.set','network.set','version.install','version.remove','version.verify','version.activate')
                 if ($script:Instance.transport -eq 'local-dev') { $operations = @($operations | Where-Object { $_ -notin 'diagnose','network.set' }) }
                 @{protocol=1; operations=$operations; transports=@(Get-LdcTransportDescriptors $null)}
             }
             state { Get-LdcSnapshot }
             'config.get' { Get-LdcConfiguration }
             versions { ,@($script:Versions.Values | Sort-Object Id | Select-Object Id,Label,Status,FilesTools,TerminalTools) }
+            'version.verify' { Test-LdcVersionIntegrity ([string]$Request.arguments.id) }
             events { ,@(Get-LdcEvents) }
             logs { Get-LdcLogs }
             'task.get' {
@@ -154,7 +158,7 @@ function Invoke-LdcRequest {
             }
             extensions { ,@(Get-LdcExtensions) }
             diagnose { Get-LdcOpenAiDiagnosis }
-            { $_ -in 'start','stop','restart','rollback','select','root.set','access.set','network.set' } { Invoke-LdcMutation $operation $Request.arguments -Interactive:$Interactive }
+            { $_ -in 'start','stop','restart','rollback','select','root.set','access.set','network.set','version.install','version.remove','version.activate' } { Invoke-LdcMutation $operation $Request.arguments -Interactive:$Interactive }
             { $_ -in 'credential.configure','credential.forget','network.prompt' } {
                 if (!$Interactive) { throw 'INTERACTIVE_REQUIRED' }
                 if ($_ -eq 'network.prompt') { Invoke-LdcLocked { & $script:LdcOpenAiHelper -Action Network } }
@@ -165,7 +169,7 @@ function Invoke-LdcRequest {
         $reply.ok = $true
     } catch {
         $code = $_.Exception.Message
-        if ($code -cnotmatch '^(INSTANCE_MISMATCH|UNSUPPORTED_ON_INSTANCE|INVALID_REQUEST|INVALID_MANIFEST|INVALID_ARGUMENT|INVALID_ROOT|INVALID_ACCESS_MODE|ACCESS_BUSY|ACCESS_UNAVAILABLE|UNSUPPORTED_PROTOCOL|UNKNOWN_OPERATION|CONFIRMATION_REQUIRED|REVISION_CONFLICT|BUSY|INTERACTIVE_REQUIRED|TASK_NOT_FOUND|OPERATION_FAILED)$') { $code = 'OPERATION_FAILED' }
+        if ($code -cnotmatch '^(INSTANCE_MISMATCH|UNSUPPORTED_ON_INSTANCE|INVALID_REQUEST|INVALID_MANIFEST|INVALID_ARGUMENT|INVALID_ROOT|INVALID_ACCESS_MODE|ACCESS_BUSY|ACCESS_UNAVAILABLE|UNSUPPORTED_PROTOCOL|UNKNOWN_OPERATION|CONFIRMATION_REQUIRED|REVISION_CONFLICT|BUSY|INTERACTIVE_REQUIRED|TASK_NOT_FOUND|INVALID_PACKAGE|PACKAGE_HASH_MISMATCH|VERSION_EXISTS|VERSION_PROTECTED|VERSION_UNVERIFIED|UPGRADE_ROLLED_BACK|RECOVERY_FAILED|OPERATION_FAILED)$') { $code = 'OPERATION_FAILED' }
         $reply.error = @{code=$code; message=$script:LdcErrors[$code]}
         if ($script:LdcRequestTaskId) { $reply.error.taskId = $script:LdcRequestTaskId }
         if ($Interactive) { Write-Host $_.Exception.Message }
@@ -195,5 +199,12 @@ $script:LdcErrors = @{
     BUSY='Another management client owns the operation lock.'
     INTERACTIVE_REQUIRED='Use the interactive console for this operation.'
     TASK_NOT_FOUND='The requested task is no longer the latest task.'
+    INVALID_PACKAGE='The version package or manifest failed validation.'
+    PACKAGE_HASH_MISMATCH='The trusted SHA-256 and package contents do not match.'
+    VERSION_EXISTS='The version is already registered or its managed directory exists.'
+    VERSION_PROTECTED='The version is active, targeted, reserved, unknown, or not eligible for safe removal.'
+    VERSION_UNVERIFIED='The target version has not passed the pinned integrity verification.'
+    UPGRADE_ROLLED_BACK='Upgrade did not pass MCP readiness; the previous version was restored.'
+    RECOVERY_FAILED='Upgrade and attempted recovery both failed; inspect actual process ownership and logs.'
     OPERATION_FAILED='The operation failed. Check status and the redacted logs.'
 }

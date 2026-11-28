@@ -16,6 +16,7 @@ $script:Instance = Resolve-LdcInstance $script:Project
 $script:TaskPath = Join-Path $script:DataDir 'task.json'
 . (Join-Path $PSScriptRoot 'LDC-OpenAI.ps1')
 . (Join-Path $PSScriptRoot 'LDC-Extensions.ps1')
+. (Join-Path $PSScriptRoot 'LDC-VersionPackages.ps1')
 
 # Only application code registers executable hooks. Manifests are metadata.
 $script:LdcAdapters = [ordered]@{
@@ -270,8 +271,7 @@ function Get-LdcObservation {
         if ($local) {
             if ($args.Count -lt 3 -or $args[1] -ne 'dev' -or $args[2] -ne 'proxy' -or
                 (Get-LdcFlag $args '--listen') -ne '127.0.0.1:0' -or
-                (Get-LdcFlag $args '--health-listen-addr') -ne '127.0.0.1:0' -or
-                (Get-LdcFlag $args '--mcp-command') -ne 'node engine/stdio.mjs --tunnel') { throw '本地代理启动标识不匹配。' }
+                (Get-LdcFlag $args '--health-listen-addr') -ne '127.0.0.1:0') { throw '本地代理启动标识不匹配。' }
             $endpoint = Get-LdcFlag $args '--url-file'
             $versions = @($script:Versions.Values | Where-Object EndpointFile -eq $endpoint)
         } else {
@@ -281,6 +281,13 @@ function Get-LdcObservation {
         }
         if ($versions.Count -ne 1) { throw '该隧道未登记，使用其原启动窗口管理。' }
         $version = $versions[0]
+        if ($local) {
+            $expectedEngine = if ($version.Id -eq 'p6') { 'node engine/stdio.mjs --tunnel' }
+                else { 'node versions/' + $version.Id + '/stdio.mjs --tunnel' }
+            if ((Get-LdcFlag $args '--mcp-command') -cne $expectedEngine) {
+                throw '本地引擎版本入口与已注册版本不符。'
+            }
+        }
         $state.Version = $version
         $healthFlag = if ($local) { '--health-url-file' } else { '--health.url-file' }
         if ((Get-LdcFlag $args $healthFlag) -ne $version.HealthFile) {
