@@ -32,6 +32,18 @@ Credential configuration and deletion remain interactive console operations usin
 
 Discover the deployment with state.instance. Clients can send the returned instance key in the optional request field instance. See [instance isolation](instance-isolation.md).
 
+## B5 version lifecycle candidate (maintenance branch)
+
+The optional `version.install`, `version.verify`, `version.activate`, and `version.remove` operations extend the existing v1 JSON stdio protocol without changing the original operations. Discover support using `capabilities.operations`; do not send these operations to the stable v1.0.0 release or older clients.
+
+- `version.install`: `{confirmed:true,revision,path,sha256}`. An independently trusted SHA-256 digest is mandatory. Installs a bounded, manifest-pinned ZIP into a new managed version directory, then atomically updates `management/versions.json`; does **not** start the version or modify the active selection. A checksum of an unknown package alone does not establish trust.
+- `version.verify`: `{id}`, read-only. Returns `verified`, `modified`, or `unmanaged`. Mutable local permissions/root/profile are outside immutable payload verification; legacy P6 may be reported as unmanaged.
+- `version.activate`: `{confirmed:true,revision,version,mode}`. Requires a known healthy running version. Checks target payload integrity and reuses the managed switch; then checks observed PID/version/mode, healthz/readyz and MCP discovery snapshot. If unsuccessful, attempts to restore the prior version, returning `UPGRADE_ROLLED_BACK` or `RECOVERY_FAILED`; callers must read actual state afterward. This does not prove remote-client invocation.
+- `version.remove`: `{confirmed:true,revision,id}`. Deletes only an unused manager-installed version; rejects active, target, rollback, default, unknown, or reparse-point versions.
+
+Additional structured error codes: `INVALID_PACKAGE`, `PACKAGE_HASH_MISMATCH`, `VERSION_EXISTS`, `VERSION_PROTECTED`, `VERSION_UNVERIFIED`, `UPGRADE_ROLLED_BACK`, `RECOVERY_FAILED`. The manager uses the existing per-instance mutex and current configuration Revision; tasks remain correlated with the request but are not retained indefinitely. See [version lifecycle contract](version-lifecycle.md) for the ZIP manifest, test scope, and limitations.
+
+
 ## File access mode
 
 State adds configuration.accessModes keyed by version ID and fileAccess with actual, target and restartRequired fields. The observed access policy is null until a current engine process reports it. Target includes mode and the retained restricted allowedRoot. The engine reports its policy independently of the tool mode.
