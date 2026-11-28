@@ -89,7 +89,7 @@ internal static class Program
                     "minimum window dimensions");
                 var layout=(DockPanel)window.Content;
                 var tabs=layout.Children.OfType<TabControl>().Single();
-                Check(tabs.Items.Count==4,"overview, connection, tools and settings navigation");
+                Check(tabs.Items.Count==5,"five-page overview connection tools logs settings navigation");
                 var themeSelector=(ComboBox)window.FindName("ThemeSelector")!;
                 Check(themeSelector.Items.Count==3 && themeSelector.IsEnabled,
                     "light dark system theme choices are accessible");
@@ -108,6 +108,28 @@ internal static class Program
                 await Task.Delay(200);
                 Screenshot(layout,"gui-tools-100.png");
                 tabs.SelectedIndex=3;
+                await Task.Delay(100);
+                var logModel=(B4LogCenter)typeof(MainWindow).GetField("logCenter",
+                    System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!
+                    .GetValue(window)!;
+                for(var i=0;i<40 && !logModel.Status.StartsWith("已缓存");i++)await Task.Delay(250);
+                Check(logModel.Status.StartsWith("已缓存"),"log center loads bounded actual management API");
+                Screenshot(layout,"gui-b4-logs-light.png");
+                var logSources=(ComboBox)window.FindName("LogSource")!;
+                var logLevels=(ComboBox)window.FindName("LogLevel")!;
+                var logSearch=(TextBox)window.FindName("LogQuery")!;
+                Check(logSources.Items.Count==3 && logLevels.Items.Count==5,
+                    "log source and severity controls available");
+                logSources.SelectedIndex=2;
+                Check(logModel.Rows.All(x=>x.Source=="管理事件"),
+                    "log source filter works on actual events");
+                logLevels.SelectedIndex=0;
+                logSearch.Text="unlikely-b4-unique-query";
+                Check(logModel.Rows.Count==0,"log search no-match rendered");
+                logSearch.Text="";
+                logSources.SelectedIndex=0;
+                Check(logModel.Status.Contains("/200"),"log center displays bounded cache");
+                tabs.SelectedIndex=4;
                 await Task.Delay(180);
                 Screenshot(layout,"gui-settings-100.png");
                 var settingsToggle=(System.Windows.Controls.Primitives.ToggleButton)
@@ -155,6 +177,9 @@ internal static class Program
                 Screenshot(layout,"gui-b31-tools-dark.png");
                 tabs.SelectedIndex=3;
                 await Task.Delay(130);
+                Screenshot(layout,"gui-b4-logs-dark.png");
+                tabs.SelectedIndex=4;
+                await Task.Delay(130);
                 Screenshot(layout,"gui-b31-settings-dark.png");
                 themeSelector.SelectedValue="Light";
                 Check(!ThemeManager.IsDark &&
@@ -195,7 +220,7 @@ internal static class Program
                 await Task.Delay(160);
                 Screenshot(layout,"gui-b31-overview-125.png",1.25);
                 layout.LayoutTransform=Transform.Identity;
-                tabs.SelectedIndex=3;
+                tabs.SelectedIndex=4;
                 for(var i=0;i<90 && !vm.ProbeFresh;i++)await Task.Delay(400);
                 Check(vm.ProbeFresh && vm.ActualToolCount==vm.ExpectedToolCount,
                     "actual MCP count shown from live discovery");
@@ -216,6 +241,30 @@ internal static class Program
                     "two file access choices");
                 var options=((ComboBox)window.FindName("AccessMode")!).Items.Cast<ComboBoxItem>().ToList();
                 Check(!options[1].IsEnabled,"Full disabled for local-dev UI");
+                Check(!vm.CanManageHosted && !((ComboBox)window.FindName("ProxyMode")!).IsEnabled &&
+                      vm.CredentialStatus.Contains("不使用"),
+                    "local development proxy and credentials remain unavailable");
+                var wizard=new B4SetupWizard(vm)
+                {
+                    Left=-32000,Top=-32000,ShowInTaskbar=false,ShowActivated=false,
+                    WindowStartupLocation=WindowStartupLocation.Manual
+                };
+                wizard.Show();
+                Check(wizard.Step==0 && wizard.SelectedRoot.Length>0,
+                    "wizard opens with actual instance and target configuration");
+                var nextButton=(Button)typeof(B4SetupWizard).GetField("next",
+                    System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!
+                    .GetValue(wizard)!;
+                for(var i=0;i<5;i++)
+                {
+                    nextButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    await Task.Delay(45);
+                }
+                Check(wizard.Step==5 && wizard.SelectedMode is "files" or "terminal",
+                    "six wizard stages accessible without service mutation");
+                wizard.Close();
+                Check(vm.CanStop && vm.Get("actual","state")=="running",
+                    "cancel/close wizard does not stop or reconfigure engine");
                 var edit=(TextBox)window.FindName("RootPath")!;
                 var originalRoot=edit.Text;
                 edit.Text="Z:\\definitely-missing-gui-root";

@@ -169,4 +169,60 @@ try {
 } catch(InvalidOperationException e) when(e.Message.Contains("INVALID_REQUEST")||e.Message.Contains("UNKNOWN_OPERATION")){
     Console.WriteLine("PASS structured operation error");
 }
+// B4 bounded, redacted log presentation and proxy rules; no network mutations.
+var logModel = new B4LogCenter();
+var sample = new {
+    tunnel = Enumerable.Range(0, 230).Select(i =>
+        $"2026-11-28T13:00:00Z {(i % 10 == 0 ? "WARN" : "INFO")} sample-log-{i} token=hidden-secret"),
+    events = Enumerable.Range(0, 40).Select(i => new {
+        utc=$"2026-11-28T13:00:{i:D2}Z",kind="change",
+        version="p6",mode="terminal",pid=100,code=i%7==0?1:0
+    })
+};
+using(var sourceDoc=JsonDocument.Parse(JsonSerializer.Serialize(sample)))
+{
+    logModel.Apply(sourceDoc.RootElement);
+    Require(logModel.Count == 200 && logModel.Rows.Count == 200,
+        "B4 log cache always bounded at 200 records");
+    logModel.Apply(sourceDoc.RootElement);
+    Require(logModel.Count == 200,"B4 repeat polling does not add duplicates");
+}
+Require(!logModel.ExportText.Contains("hidden-secret") && logModel.ExportText.Contains("[凭据信息已隐藏]"),
+    "B4 redacted log export never includes sample secrets");
+logModel.Source = "管理事件";
+Require(logModel.Rows.Count > 0 && logModel.Rows.All(x=>x.Source=="管理事件"),
+    "B4 source filter");
+logModel.Level = "ERROR";
+Require(logModel.Rows.Count > 0 && logModel.Rows.All(x=>x.Level=="ERROR"),
+    "B4 severity filter");
+logModel.Search="not-found-unique";
+Require(logModel.Rows.Count==0,"B4 search no-match state");
+logModel.Source="全部";logModel.Level="全部";logModel.Search="";
+Require(logModel.Rows.Count==200,"B4 filters reset to full cache");
+var danger="Authorization: Bearer abc1234, API_KEY=secret123 sk-test1234567890 C:\\Users\\private\\key.txt https://local.test/path?token=private";
+var safe=B4LogCenter.Redact(danger);
+Require(!safe.Contains("secret123")&&!safe.Contains("test123")&&
+        !safe.Contains("C:\\Users")&&!safe.Contains("token=private"),
+    "B4 redaction covers credentials, local paths and URL queries");
+using(var brokenLogs=JsonDocument.Parse("[]"))
+{
+    try { logModel.Apply(brokenLogs.RootElement); throw new Exception("Log schema accepted array"); }
+    catch(InvalidDataException) {Console.WriteLine("PASS B4 malformed log schema rejected");}
+}
+Require(B4Proxy.TryNormalize(null,out var autoProxy) && autoProxy is null,
+    "B4 automatic proxy mode");
+Require(B4Proxy.TryNormalize("http://localhost:7897/",out var normalizedProxy) &&
+        normalizedProxy=="http://127.0.0.1:7897","B4 loopback HTTP proxy canonicalized");
+foreach(var invalid in new[]{"http://example.org:7897","socks5://127.0.0.1:7897",
+    "127.0.0.1:0","127.0.0.1:65536","127.0.0.1:abc",
+    "http://user:pwd@localhost:7897","https://127.0.0.1:7897"})
+{
+    Require(!B4Proxy.TryNormalize(invalid,out _),"B4 rejects invalid proxy "+invalid);
+}
+Require(!B4Proxy.IsHosted("local-dev")&&B4Proxy.IsHosted("openai"),
+    "B4 only hosted OpenAI adapter exposes proxy actions");
+vm.Apply(state);
+Require(!vm.CanManageHosted && vm.ProxyStatus.Contains("不使用") &&
+    vm.CredentialStatus.Contains("不使用"),"B4 local-dev refuses hosted proxy/credential features");
+Console.WriteLine("B4 GUI CONTRACT TESTS PASSED");
 Console.WriteLine("GUI CONTRACT TESTS PASSED");

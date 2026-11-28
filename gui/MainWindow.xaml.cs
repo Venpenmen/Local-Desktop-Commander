@@ -26,6 +26,7 @@ public partial class MainWindow : Window
         ThemeManager.Initialize();
         InitializeComponent();
         DataContext = vm;
+        InitializeB4();
         ThemeSelector.SelectedValuePath = "Tag";
         ThemeSelector.SelectedValue = ThemeManager.Choice.ToString();
         var args = Environment.GetCommandLineArgs();
@@ -44,17 +45,23 @@ public partial class MainWindow : Window
         }
         if (dir is null || !File.Exists(Path.Combine(dir.FullName, "management", "LDC-CLI.ps1")))
             throw new InvalidOperationException("找不到目标工作区管理接口。独立包请使用 --root <工作区路径>。");
+        workspaceRoot = dir.FullName;
         client = new ManagementClient(dir.FullName);
         diagnostics = new McpDiagnostics(dir.FullName);
 
         Loaded += async (_, _) =>
         {
             await Refresh(true);
+            LoadNetworkForm();
             try { vm.ApplyLogLocations(await client.RequestAsync("logs")); }
             catch { /* logs are a secondary diagnostic, not a startup dependency */ }
             timer.Start();
         };
-        timer.Tick += async (_, _) => await Refresh(false);
+        timer.Tick += async (_, _) =>
+        {
+            await Refresh(false);
+            if (Pages.SelectedIndex == 3 && logCenter.Follow) await FetchLogsAsync();
+        };
         Closed += (_, _) => { closing = true; timer.Stop(); };
     }
 
@@ -190,7 +197,11 @@ public partial class MainWindow : Window
     private async void Stop_Click(object sender, RoutedEventArgs e) => await Service("stop");
     private async void Restart_Click(object sender, RoutedEventArgs e) => await Service("restart");
     private async void Refresh_Click(object sender, RoutedEventArgs e) => await Refresh(false);
-    private async void Load_Click(object sender, RoutedEventArgs e) => await Refresh(true);
+    private async void Load_Click(object sender, RoutedEventArgs e)
+    {
+        await Refresh(true);
+        if (vm.Fresh) LoadNetworkForm();
+    }
 
     private void Browse_Click(object sender, RoutedEventArgs e)
     {

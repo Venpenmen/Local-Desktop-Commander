@@ -60,6 +60,15 @@ public sealed class GuiState : INotifyPropertyChanged
     public bool CanOperate => Fresh && !Busy && Get("instance","key") is not null;
     public bool CanStart => Get("actual","state") == "stopped";
     public bool CanStop => Get("actual","state") == "running";
+    public bool CanManageHosted => Fresh && !Busy && Get("instance","transport") == "openai";
+    public string ProxyStatus => Get("instance","transport") != "openai"
+        ? "当前为 local-dev，本实例不使用托管代理配置。"
+        : $"已保存代理目标：{Get("configuration","proxy") ?? "自动选择"}。运行中的实际代理无法从当前协议直接读取。";
+    public string CredentialStatus => Get("instance","transport") != "openai"
+        ? "当前实例不使用托管隧道凭据。"
+        : TransportValue("credentials","configured") == "True"
+            ? "已配置 · Windows DPAPI 加密保存，密钥不可查看。"
+            : "未配置 · 可通过现有安全交互控制台设置。";
     public bool FullAvailable => Get("instance","transport") == "openai";
     public string FullNotice => FullAvailable
         ? "Full 允许跨本机盘符访问，仍受 Windows ACL 限制。"
