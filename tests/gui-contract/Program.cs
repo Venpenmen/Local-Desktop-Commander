@@ -37,6 +37,102 @@ try {
 }
 Require(GuiState.Value(await client.RequestAsync("state"),"instance","key")==key,
     "client recovers from a read timeout without instance switching");
+
+Require(vm.ActualDetails.Contains("进程 PID"),"detailed GUI status includes PID");
+Require(vm.TargetDetails.Contains("回滚"),"GUI reads rollback version");
+var logLocations = await client.RequestAsync("logs");
+vm.ApplyLogLocations(logLocations);
+Require(vm.LogDetails.Contains("tunnel.log") && vm.LogDetails.Contains("activity.log"),
+    "GUI reuses management redacted log locations");
+Require(vm.TransportDetails.Contains("health"),
+    "GUI reads adapter-declared transport capabilities");
+Require(vm.LayerDetails.Contains("L4 远程客户端"),"four-layer client state does not infer remote verification");
+var notReady = System.Text.Json.Nodes.JsonNode.Parse(state.GetRawText())!;
+notReady["readiness"]!["local"] = false;
+using(var notReadyDoc = JsonDocument.Parse(notReady.ToJsonString()))
+{
+    vm.Apply(notReadyDoc.RootElement);
+    Require(vm.LayerDetails.Contains("未就绪"),
+        "loss of readiness is not silently reported as healthy");
+}
+vm.Apply(state);
+Require(vm.ToolDescription.Contains("未检测"),"pre-discovery actual count is explicitly unknown");
+
+var unsafeState = System.Text.Json.Nodes.JsonNode.Parse(state.GetRawText())!;
+unsafeState["actual"]!["state"] = "unsafe";
+using(var unsafeDocument = JsonDocument.Parse(unsafeState.ToJsonString()))
+{
+    vm.Apply(unsafeDocument.RootElement);
+    Require(vm.ActualState=="状态异常" && vm.DiagnosticsAdvice.Contains("进程归属异常"),
+        "unsafe PID disables recovery assumptions");
+}
+var hostedState = System.Text.Json.Nodes.JsonNode.Parse(state.GetRawText())!;
+hostedState["instance"]!["transport"] = "openai";
+using(var hostedDocument = JsonDocument.Parse(hostedState.ToJsonString()))
+{
+    vm.Apply(hostedDocument.RootElement);
+    Require(!vm.HasEndpoint && vm.LayerDetails.Contains("需检查托管传输"),
+        "hosted adapter uses separate transport level without fabricated remote success");
+}
+vm.Apply(state);
+using(var failedDocument = JsonDocument.Parse(
+    "{\"schema\":1,\"status\":\"unavailable\",\"error\":\"MCP_TIMEOUT\"}"))
+{
+    Require(vm.ApplyInspection(failedDocument.RootElement, vm.InspectionKey),
+        "failed diagnostic accepted only for current process identity");
+    Require(vm.InspectionStatus=="failed" && vm.ToolSummary.Contains("MCP_TIMEOUT"),
+        "diagnostic failure displayed, not treated as zero tools");
+}
+vm.ClearInspection();
+
+if(GuiState.Value(state,"actual","state")=="running" &&
+   GuiState.Value(state,"instance","transport")=="local-dev")
+{
+
+    var inspector = new McpDiagnostics(workspace);
+    using var stopped = JsonDocument.Parse(
+        state.GetRawText().Replace("\"running\"","\"stopped\""));
+    try {
+        await inspector.InspectAsync(stopped.RootElement);
+        throw new Exception("Stopped instance was probed");
+    } catch (InvalidOperationException e) when(e.Message.Contains("未运行")) {
+        Console.WriteLine("PASS stopped MCP probe rejected without network");
+    }
+    try {
+        await inspector.InspectAsync(state, TimeSpan.FromMilliseconds(1));
+        throw new Exception("Expected inspector timeout");
+    } catch (TimeoutException e) when(e.Message.Contains("超时")) {
+        Console.WriteLine("PASS inspector timeout only cancels owned inspection child");
+    }
+    Require(GuiState.Value(await client.RequestAsync("state"),"actual","state")=="running",
+        "inspector timeout does not stop the MCP engine");
+    var probe = await new McpDiagnostics(workspace).InspectAsync(state);
+    Require(GuiState.Value(probe,"status")=="ok","live B3 MCP inspection connected");
+    Require(GuiState.Value(probe,"counts","actual")==GuiState.Value(state,"readiness","expectedTools"),
+        "live discovered count agrees with configured mode");
+    Require(probe.GetProperty("fileCatalog").GetArrayLength()==14,"independent file catalog has 14 names");
+    Require(vm.ApplyInspection(probe,vm.InspectionKey),"live probe belongs to current PID and mode");
+    Require(vm.ProbeFresh && vm.ActualToolCount==vm.ExpectedToolCount,"GUI binds actual tool count");
+    vm.ToolCategory="异常";
+    Require(vm.Tools.Count==0,"no unexpected or missing tools after valid discovery");
+    vm.ToolCategory="全部";
+    vm.ToolSearch="list_directory";
+    Require(vm.Tools.Count==1,"GUI tool-name search");
+    vm.ToolSearch="";
+    Require(vm.Tools.Count==probe.GetProperty("actual").GetArrayLength(),"GUI tool list restored after filter");
+    vm.ToolCategory="文件工具";
+    Require(vm.Tools.Count==14,"GUI file category derives from independent installed engine");
+    vm.ToolCategory="终端工具";
+    Require(vm.Tools.Count==(GuiState.Value(state,"actual","mode")=="terminal"?7:0),
+        "GUI terminal category accurately distinguishes seven terminal additions");
+    vm.ToolCategory="全部";
+    Require(vm.HealthDetails.Contains("healthz") && vm.HasEndpoint,
+        "local health and loopback endpoint visible");
+    var later = state.Clone();
+    vm.Invalidate();
+    Require(!vm.ProbeFresh,"outdated MCP probe is not presented as live");
+    vm.Apply(later);
+}
 vm.Invalidate();
 Require(!vm.Fresh,"invalidating stale UI state disables it");
 vm.Apply(state);

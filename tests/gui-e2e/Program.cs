@@ -113,6 +113,7 @@ internal static class Program
         var original = GuiState.Value(initial,"actual","state")!;
         var initialRoot = GuiState.Value(initial,"fileAccess","target","allowedRoot")!;
         var initialMode = GuiState.Value(initial,"configuration","target","mode")!;
+        var changedMode = initialMode == "files" ? "terminal" : "files";
         var work = Path.Combine(Workspace,"engine","workspace","gui-e2e-subroot");
         Directory.CreateDirectory(work);
         MainWindow? window = null;
@@ -146,6 +147,11 @@ internal static class Program
             var actual = await client.RequestAsync("state");
             Pass(GuiState.Value(actual,"actual","state") == "running",
                 "GUI start observable in independent TUI/CLI");
+            await Until(() => vm.ProbeFresh && vm.ActualToolCount == vm.ExpectedToolCount,
+                "automatic actual MCP discovery after GUI start");
+            Pass(vm.HasEndpoint && vm.ToolDiff.Contains("缺失 0") &&
+                 vm.ToolDiff.Contains("额外 0"),
+                 "GUI automatically exposes real matching MCP tool names and local endpoint");
 
             Click(window, "Stop_Click");
             await Stable(vm, "stopped");
@@ -157,11 +163,11 @@ internal static class Program
             await client.RequestAsync("root.set", new {
                 confirmed=true, version="p6", revision=GuiState.Value(s,"configuration","revision"), path=work
             });
-            Choose(window,"terminal",work);
+            Choose(window,changedMode,work);
             Click(window, "Save_Click");
             await Until(() => vm.Message.Contains("REVISION_CONFLICT"), "revision conflict feedback");
             Pass(vm.Message.Contains("REVISION_CONFLICT") &&
-                 GuiState.Value(await client.RequestAsync("state"),"configuration","target","mode")=="files",
+                 GuiState.Value(await client.RequestAsync("state"),"configuration","target","mode")==initialMode,
                  "stale GUI form cannot overwrite TUI changes");
 
             Click(window, "Load_Click");
@@ -170,17 +176,26 @@ internal static class Program
             Pass(((TextBox)window.FindName("RootPath")!).Text == work,
                 "GUI pulls external root update");
 
-            Choose(window,"terminal",work);
+            Choose(window,changedMode,work);
             Click(window, "SaveStart_Click");
             await Stable(vm, "running");
             var terminal = await client.RequestAsync("state");
-            Pass(GuiState.Value(terminal,"actual","mode")=="terminal" &&
+            Pass(GuiState.Value(terminal,"actual","mode")==changedMode &&
                  GuiState.Value(terminal,"fileAccess","actual","mode")=="restricted",
-                 "GUI save and launch terminal changes actual configuration");
+                 "GUI save and launch changes actual configuration");
+            await Until(() => vm.ProbeFresh &&
+                vm.ActualToolCount == (changedMode == "files" ? "14" : "21"),
+                "automatic rediscovery after GUI mode switch");
+            Pass(vm.ToolDescription.Contains(vm.ActualToolCount),
+                "GUI mode switch updates actual count rather than old snapshot");
 
             Click(window,"Restart_Click");
             await Stable(vm, "running");
             Pass(vm.CanStop,"GUI restart returns to ready service");
+            await Until(() => vm.ProbeFresh &&
+                vm.ActualToolCount == (changedMode == "files" ? "14" : "21"),
+                "rediscovery after GUI restart");
+            Pass(vm.ProbeFresh, "GUI restart invalidated and refreshed MCP discovery");
 
             // Closing the real WPF window does not kill the separately owned engine.
             window.Close();
@@ -192,7 +207,7 @@ internal static class Program
             window=NewWindow(_=>true);
             vm=Model(window);
             await Stable(vm,"running");
-            Pass(vm.Get("actual","mode")=="terminal",
+            Pass(vm.Get("actual","mode")==changedMode,
                 "reopening GUI restores service status");
 
             Click(window,"Stop_Click");

@@ -1,8 +1,8 @@
-# Local Desktop Commander GUI（M7-B 首版）
+# Local Desktop Commander GUI（M7-B3 候选）
 
 ## 启动
 
-在 Windows 11 上，在项目根目录运行 `scripts\publish-gui.ps1` 构建自包含 win-x64 GUI。构建完成后双击 `scripts\start-gui.bat`。无需额外安装 .NET 运行时。GUI 与管理 CLI 使用当前 Windows 登录用户权限，不以管理员身份自动提升。
+在 Windows 11 上，在项目根目录运行 `scripts\publish-gui.ps1` 构建自包含 win-x64 GUI。构建完成后双击 `scripts\start-gui.bat`。无需额外安装 .NET 运行时。B3 工具检测需要随包保留 `diagnostics/` 辅助脚本及工作区已有 Node.js 和 MCP SDK。GUI 与管理 CLI 使用当前 Windows 登录用户权限，不以管理员身份自动提升。
 
 独立目录运行：`LocalDC.Gui.exe --root "D:\path\to\LocalDC"`。该目录必须包含 `management\LDC-CLI.ps1` 及对应版本和运行文件。界面仅管理明确指定的工作区实例。
 
@@ -18,4 +18,14 @@
 
 运行 `dotnet run --project tests\gui-contract -- "项目根目录"` 可验证客户端协议。运行 `node tests\gui-mcp-probe.mjs files` 仅在本地开发代理已启动时执行真实 MCP 工具调用。完整终端模式也须在已授权的隔离实例上运行。自动化回归证据保存在本地 test-runtime，正式服务不可当作测试夹具。
 
-M7-B0～B2 仅覆盖核心 GUI 管理功能；连接诊断、日志、凭据、升级和扩展属于后续 B3～B7。
+M7-B0～B2 覆盖基础 GUI 管理，B3 增加只读连接诊断和实际工具清单。日志全文、凭据、版本升级及扩展管理仍属于后续 B4～B7。
+
+## B3：连接与工具管理
+
+GUI 提供四个左侧导航页面：**服务概览、连接管理、工具管理、运行设置**。概览包含实际 PID、进程启动时间、运行时长、工具预期/实际数量、目标与回滚版本。连接管理显示本地引擎、MCP 协议、公网传输和远程客户端四层状态，并展示健康检查及适用的本地地址。工具管理可手动重新检测、搜索名称、按文件/终端/异常筛选。
+
+开发实例在启动、重启或模式切换后，自动调用真实 MCP `initialize` 和 `tools/list`。实际数量来源于当前运行中的实例，预期名称取自同版本引擎的独立目录。检测超时不重启服务；结果与进程身份绑定。公网传输和 ChatGPT/Gemini 的远程可用性需独立验证，GUI 不将本地检测冒充远程成功。
+
+诊断功能默认只读。控制面板沿用 B2 的确认机制执行启动、停止或受控重启。托管 OpenAI 实例可在明确点击“一键诊断”后调用原管理协议的 `diagnose`，local-dev 仅作回环检测。本轮没有凭据输入、版本升级或日志全文查看页面。
+
+专项验证：`node tests/gui-b3-diff.mjs`、`node tests/gui-b3-faults.mjs`、`node tests/gui-b3-modes.mjs`，配合既有 .NET GUI 契约、WPF 离屏及原有管理回归。后续历史调用统计（B6.5）仅记录于 `docs/gui-b3.md`。

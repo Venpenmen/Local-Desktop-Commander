@@ -10,6 +10,10 @@ public partial class MainWindow : Window
 {
     private readonly GuiState vm = new();
     private readonly ManagementClient client;
+    private readonly McpDiagnostics diagnostics;
+    private readonly SemaphoreSlim probeGate = new(1, 1);
+    private string? lastScheduledInspectionKey;
+    private DateTimeOffset lastProbeAttempt = DateTimeOffset.MinValue;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(3) };
     private readonly SemaphoreSlim gate = new(1, 1);
     private bool closing;
@@ -38,8 +42,15 @@ public partial class MainWindow : Window
         if (dir is null || !File.Exists(Path.Combine(dir.FullName, "management", "LDC-CLI.ps1")))
             throw new InvalidOperationException("找不到目标工作区管理接口。独立包请使用 --root <工作区路径>。");
         client = new ManagementClient(dir.FullName);
+        diagnostics = new McpDiagnostics(dir.FullName);
 
-        Loaded += async (_, _) => { await Refresh(true); timer.Start(); };
+        Loaded += async (_, _) =>
+        {
+            await Refresh(true);
+            try { vm.ApplyLogLocations(await client.RequestAsync("logs")); }
+            catch { /* logs are a secondary diagnostic, not a startup dependency */ }
+            timer.Start();
+        };
         timer.Tick += async (_, _) => await Refresh(false);
         Closed += (_, _) => { closing = true; timer.Stop(); };
     }
@@ -47,7 +58,11 @@ public partial class MainWindow : Window
     private async Task Read()
     {
         var snapshot = await client.RequestAsync("state");
-        if (!closing) vm.Apply(snapshot);
+        if (!closing)
+        {
+            vm.Apply(snapshot);
+            ScheduleInspection();
+        }
     }
     private void LoadForm()
     {
@@ -109,12 +124,14 @@ public partial class MainWindow : Window
             }
             vm.Busy = false;
             gate.Release();
+            ScheduleInspection();
         }
     }
     private async Task Service(string operation)
     {
         if (!vm.CanOperate) return;
-        var approved = Confirm("确认对当前开发实例执行 " + operation + "？");
+        var approved = Confirm("确认对实例 " + (vm.Get("instance","id") ?? "未知") +
+                               " 执行 " + operation + "？");
         if (!approved) return;
         await Run(() => Mutate(operation, new { confirmed = true }));
     }
@@ -132,6 +149,103 @@ public partial class MainWindow : Window
     }
     private async void Save_Click(object sender, RoutedEventArgs e) => await Save(false);
     private async void SaveStart_Click(object sender, RoutedEventArgs e) => await Save(true);
+
+    private void ScheduleInspection()
+    {
+        if (closing || vm.Busy || !vm.Fresh) return;
+        var key = vm.InspectionKey;
+        var eligible = vm.Get("actual","state") == "running" &&
+                       vm.Get("instance","transport") == "local-dev";
+        if (!eligible)
+        {
+            if (lastScheduledInspectionKey != key)
+            {
+                lastScheduledInspectionKey = key;
+                vm.ClearInspection();
+            }
+            return;
+        }
+        if (lastScheduledInspectionKey == key &&
+            !(vm.InspectionStatus == "failed" &&
+              DateTimeOffset.UtcNow - lastProbeAttempt > TimeSpan.FromSeconds(35))) return;
+        lastScheduledInspectionKey = key;
+        _ = Dispatcher.BeginInvoke(new Action(() => _ = Inspect(false)),
+            DispatcherPriority.Background);
+    }
+
+    private async Task Inspect(bool manual)
+    {
+        if (closing || vm.Busy || !vm.Fresh) return;
+        if (!probeGate.Wait(0))
+        {
+            if (manual) vm.Message = "已有工具检测正在执行，请查看最近检测结果。";
+            return;
+        }
+        var key = vm.InspectionKey;
+        lastProbeAttempt = DateTimeOffset.UtcNow;
+        vm.Probing = true;
+        try
+        {
+            var snapshot = vm.Snapshot.Clone();
+            if (vm.Get("instance","transport") != "local-dev")
+            {
+                if (manual)
+                {
+                    var response = await client.RequestAsync("diagnose");
+                    var reachable = GuiState.Value(response,"reachable") == "True";
+                    vm.Message = reachable
+                        ? "托管传输 HTTPS 诊断通过；实际 MCP 工具和远程客户端仍需独立验证。"
+                        : "托管传输 HTTPS 诊断失败，请查看网络与代理设置。";
+                }
+                return;
+            }
+            if (vm.Get("actual","state") != "running")
+            {
+                if (manual) vm.Message = "实例尚未运行，无法获取实际工具。";
+                vm.ClearInspection();
+                return;
+            }
+            var result = await diagnostics.InspectAsync(snapshot);
+            if (!closing && vm.ApplyInspection(result, key) && manual)
+                vm.Message = vm.ToolSummary;
+        }
+        catch (Exception ex)
+        {
+            if (!closing)
+            {
+                vm.FailInspection(ex.Message, key);
+                if (manual) vm.Message = "MCP 检测失败：" + ex.Message;
+            }
+        }
+        finally
+        {
+            vm.Probing = false;
+            probeGate.Release();
+        }
+    }
+
+    private async void Diagnose_Click(object sender, RoutedEventArgs e)
+    {
+        if (vm.Busy) return;
+        await Refresh(false);
+        await Inspect(true);
+    }
+    private async void DetectTools_Click(object sender, RoutedEventArgs e) => await Inspect(true);
+    private void CopyEndpoint_Click(object sender, RoutedEventArgs e)
+    {
+        if (!vm.HasEndpoint) return;
+        try { Clipboard.SetText(vm.Endpoint); vm.Message = "已复制本地 MCP 接入地址。"; }
+        catch { vm.Message = "无法访问 Windows 剪贴板，请手动复制上方地址。"; }
+    }
+    private void ToolSearch_Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (vm is not null && ToolSearch is not null) vm.ToolSearch = ToolSearch.Text;
+    }
+    private void ToolCategory_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (vm is not null && ToolCategory?.SelectedItem is System.Windows.Controls.ComboBoxItem item)
+            vm.ToolCategory = item.Content?.ToString() ?? "全部";
+    }
 
     private async Task Save(bool start)
     {

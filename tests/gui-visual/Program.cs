@@ -21,6 +21,9 @@ internal static class Program
     }
     private static void Screenshot(FrameworkElement element, string name, double scale = 1)
     {
+        var panel = element as Panel;
+        var originalBackground = panel?.Background;
+        if (panel is not null) panel.Background = new SolidColorBrush(Color.FromRgb(244, 246, 248));
         element.LayoutTransform = new ScaleTransform(scale, scale);
         element.UpdateLayout();
         var size = new Size(element.ActualWidth * scale, element.ActualHeight * scale);
@@ -32,6 +35,7 @@ internal static class Program
         encoder.Frames.Add(BitmapFrame.Create(image));
         using var file = File.Create(Path.Combine(Root,"test-runtime",name));
         encoder.Save(file);
+        if (panel is not null) panel.Background = originalBackground;
         Check(file.Length > 6000, name + " rendered and persisted");
     }
     [STAThread]
@@ -81,13 +85,33 @@ internal static class Program
                     "minimum window dimensions");
                 var layout=(DockPanel)window.Content;
                 var tabs=layout.Children.OfType<TabControl>().Single();
-                Check(tabs.Items.Count==2,"overview and settings navigation");
+                Check(tabs.Items.Count==4,"overview, connection, tools and settings navigation");
                 tabs.SelectedIndex=0;
                 await Task.Delay(150);
                 Screenshot(layout,"gui-overview-100.png");
                 tabs.SelectedIndex=1;
-                await Task.Delay(150);
+                await Task.Delay(180);
+                Screenshot(layout,"gui-connection-100.png");
+                tabs.SelectedIndex=2;
+                await Task.Delay(200);
+                Screenshot(layout,"gui-tools-100.png");
+                tabs.SelectedIndex=3;
+                await Task.Delay(180);
                 Screenshot(layout,"gui-settings-100.png");
+                for(var i=0;i<90 && !vm.ProbeFresh;i++)await Task.Delay(400);
+                Check(vm.ProbeFresh && vm.ActualToolCount==vm.ExpectedToolCount,
+                    "actual MCP count shown from live discovery");
+                Check(vm.Tools.Count is 14 or 21,
+                    "actual MCP tool list rendered");
+                var pidBeforeDiagnostic=vm.Get("actual","pid");
+                typeof(MainWindow).GetMethod("Diagnose_Click",
+                    System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!
+                    .Invoke(window,[window,new RoutedEventArgs(Button.ClickEvent)]);
+                for(var i=0;i<90 && !vm.Message.Contains("工具名称与数量一致");i++)
+                    await Task.Delay(250);
+                Check(vm.Message.Contains("工具名称与数量一致") &&
+                      vm.Get("actual","pid")==pidBeforeDiagnostic,
+                    "one-click read-only diagnosis preserves engine PID");
                 Check(((ComboBox)window.FindName("ToolMode")!).Items.Count==2,
                     "two tool mode choices");
                 Check(((ComboBox)window.FindName("AccessMode")!).Items.Count==2,

@@ -10,6 +10,11 @@ $exe = Join-Path $destination 'LocalDC.Gui.exe'
 & $dotnet publish (Join-Path $project 'gui\LocalDC.Gui.csproj') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o $destination
 if ($LASTEXITCODE -ne 0) { throw 'GUI publish failed' }
 if (!(Test-Path -LiteralPath $exe -PathType Leaf)) { throw 'Missing GUI executable' }
+$diagnostics = Join-Path $destination 'diagnostics'
+$null = [IO.Directory]::CreateDirectory($diagnostics)
+Copy-Item -LiteralPath (Join-Path $project 'gui\mcp-inspect.mjs') -Destination (Join-Path $diagnostics 'mcp-inspect.mjs') -Force
+Copy-Item -LiteralPath (Join-Path $project 'gui\tool-diff.mjs') -Destination (Join-Path $diagnostics 'tool-diff.mjs') -Force
+Copy-Item -LiteralPath (Join-Path $project 'gui\tool-catalog.mjs') -Destination (Join-Path $diagnostics 'tool-catalog.mjs') -Force
 $manifest = [ordered]@{
     component = 'LocalDC management GUI'
     branch = 'feature/management-gui'
