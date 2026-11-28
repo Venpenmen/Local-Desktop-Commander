@@ -24,3 +24,15 @@
 - 本次版本保持 ChatGPT 正式部署、Core 和 GUI 分支不变。
 
 自动化回归执行：`npm.cmd test`。详细验收、后续联调见 `C5-ACCEPTANCE.md` 与 `C5-HANDOFF.md`。
+
+
+## C5-U 可选公网提供商（统一接口候选）
+
+C5-U 已在 Gemini 独立分支中增加 TunnelManager。原 ngrok 域名和本地 DPAPI Token 的 [1]/[2]/[3] 流程保留。独立控制台增加 [13] 选择提供商、[14]/[15] 配置或清理 Named 预留凭据；CLI 新增 tunnel.capabilities、tunnel.provider.get/set、tunnel.credential.set/clear。具体配置和安全边界见 C5-U-ARCHITECTURE.md。
+
+- Cloudflare Quick：无需账户和固定域名，启动时自动发现随机 trycloudflare.com 地址，建立发行地址后才能开放 OAuth；进程重建分配的新域名会使旧授权失效，需重新关联 Gemini。此能力仅通过本地真实 OAuth/HTTP + mock Agent 验收，未经新一轮真实公网 L5。Quick Tunnel 不支持 SSE。
+- Cloudflare Named：预留固定域名与 DPAPI Token 契约，目前启动返回 TUNNEL_PROVIDER_NOT_INSTALLED；需等待独立 Cloudflare 专项会话研究与实机部署。
+- External HTTPS：外部公网转发由用户维护，LDC 只核对 OAuth 资源元数据并提供本地回环 OAuth 端口，不停止不属于自身的进程。
+- ngrok：原 C5 适配器保留且经过回归；需账户提供固定免费域名与本人本地输入 authtoken 方可公网验收。
+
+配置切换需要停止实例；当发行地址变化时需明确 RESET，CLI 还要求 revision 及 riskAcknowledged。Restricted/Full、14/21 工具、旧 OAuth 安全边界不因选择公网提供商而变化。Cloudflare Quick 客户端可使用本机 C2 已验证签名的版本，独立运行目录为 test-runtime/gemini-personal/bin/cloudflared.exe，不安装系统服务。

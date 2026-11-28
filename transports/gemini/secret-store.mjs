@@ -13,7 +13,7 @@ function dpapi(script, data) {
 }
 /** Local-user Windows DPAPI encrypted data. No fallback to plaintext. */
 export function createSecretStore(instance,fileName='oauth-state.dpapi') {
-  if(!['oauth-state.dpapi','tunnel-secret.dpapi'].includes(fileName))throw Error('INVALID_SECRET_FILE');
+  if(!['oauth-state.dpapi','tunnel-secret.dpapi','tunnel-cloudflare-named.dpapi'].includes(fileName))throw Error('INVALID_SECRET_FILE');
   const directory = join(instance, 'credentials');
   mkdirSync(directory, { recursive: true });
   if (lstatSync(directory).isSymbolicLink()) throw Error('UNSAFE_CREDENTIAL_DIRECTORY');

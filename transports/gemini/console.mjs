@@ -52,7 +52,9 @@ function status(){
   stdout.write('Root: '+s.fileAccess.target.root+'\n');
   stdout.write('HTTPS target: '+(s.connection.targetIssuer??'not set')+'\n');
   stdout.write('OAuth: '+(s.connection.oauth?.clientRegistered?'registered':'not registered')+'\n');
+  stdout.write('Tunnel provider: '+s.connection.tunnelProvider+'\n');
   stdout.write('ngrok token: '+(s.connection.ngrokTokenConfigured?'stored with DPAPI':'not configured')+'\n');
+  stdout.write('Named token: '+(s.connection.tunnelCredentialsConfigured?.['cloudflare-named']?'stored with DPAPI':'not configured')+'\n');
   stdout.write('Tunnel: '+s.connection.publicTunnel.state+' / verified: '+Boolean(s.connection.publicTunnel.verified)+'\n');
   stdout.write('Local MCP ready: '+Boolean(s.connection.privateReady)+'\n');
   stdout.write('Restart required: '+s.fileAccess.restartRequired+'\n');
@@ -71,7 +73,8 @@ try{
     stdout.write('[3] Start OAuth + tunnel  [4] Register Google callback  [5] Arm one-time OAuth\n');
     stdout.write('[6] Show local OAuth client credentials  [7] Change file/tool modes\n');
     stdout.write('[8] Restart  [9] Stop  [10] Revoke OAuth  [11] Recheck public HTTPS\n');
-    stdout.write('[12] Clear ngrok token  [Q] Quit (stop owned services)\n');
+    stdout.write('[12] Clear ngrok token  [13] Choose tunnel provider  [14] Save Named token\n');
+    stdout.write('[15] Clear Named token  [Q] Quit (stop owned services)\n');
     const choice=(await question('Select: ')).toLowerCase();
     try{
       switch(choice){
@@ -150,6 +153,47 @@ try{
         case '12':{
           if((await question('Delete locally encrypted ngrok token? Type CLEAR: '))!=='CLEAR')break;
           runner.clearNgrokToken();stdout.write('Stored tunnel token cleared.\n');break;
+        }
+        case '13':{
+          if(runner.status.state!=='stopped')throw Error('STOP_BEFORE_CHANGE');
+          stdout.write('1 ngrok (fixed Free) / 2 Cloudflare Quick (dynamic) / 3 Cloudflare Named (reserved) / 4 External HTTPS\n');
+          const providerChoice=await question('Provider number: ');
+          const providers={'1':'ngrok','2':'cloudflare-quick','3':'cloudflare-named','4':'external-https'};
+          const provider=providers[providerChoice];
+          if(!provider)throw Error('UNKNOWN_TUNNEL_PROVIDER');
+          let issuer=null;
+          if(provider!=='cloudflare-quick')issuer=await question('Exact fixed HTTPS origin: ');
+          const config={schema:1,provider,issuer};
+          if(provider==='cloudflare-named'){
+            const tid=await question('Tunnel ID (optional; press Enter to omit): ');
+            if(tid)config.tunnelId=tid;
+          }
+          const current=runner.status.connection.targetIssuer;
+          const changed=current&&current!==issuer;
+          let reset=false;
+          if(changed){
+            reset=(await question('Issuer change revokes old OAuth grants. Type RESET: '))==='RESET';
+            if(!reset)break;
+          }
+          runner.setTunnelProvider(config,{clearExistingAuthorization:reset});
+          stdout.write('Tunnel provider configuration saved.\n');
+          if(provider==='cloudflare-named')
+            stdout.write('Named adapter reserved: public start is NOT IMPLEMENTED until validation.\n');
+          if(provider==='cloudflare-quick')
+            stdout.write('Quick dynamic domain is assigned on each tunnel start; reauthorize on change.\n');
+          break;
+        }
+        case '14':{
+          const token=await hidden('Cloudflare Named tunnel token (hidden): ');
+          runner.setTunnelCredential('cloudflare-named',token);
+          stdout.write('Named token encrypted using current Windows user DPAPI.\n');
+          break;
+        }
+        case '15':{
+          if((await question('Delete locally encrypted Named token? Type CLEAR: '))!=='CLEAR')break;
+          runner.clearTunnelCredential('cloudflare-named');
+          stdout.write('Named token cleared.\n');
+          break;
         }
         case 'q':running=false;break;
         default:stdout.write('Unknown option.\n');

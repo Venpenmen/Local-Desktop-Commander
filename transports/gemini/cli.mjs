@@ -2,6 +2,7 @@ import { createInterface } from 'node:readline';
 import { resolve } from 'node:path';
 import { GeminiRunner } from './runner.mjs';
 import { modes, toolSets } from './config.mjs';
+import { providerIds, capabilities } from './tunnel-contract.mjs';
 
 const runtime = resolve(process.argv[2] ?? './test-runtime/gemini-c4');
 const instance = process.argv[3] ?? 'gemini-c4';
@@ -28,8 +29,11 @@ async function command(req) {
         operations: ['state', 'capabilities', 'start', 'stop', 'restart', 'config.get', 'config.set',
           'connection.set', 'oauth.status', 'oauth.register', 'oauth.arm',
           'oauth.credentials', 'oauth.revoke', 'tunnel.check',
+          'tunnel.provider.get', 'tunnel.provider.set', 'tunnel.capabilities',
+          'tunnel.credential.set', 'tunnel.credential.clear',
           'ngrok.token.set', 'ngrok.token.clear'],
         instance: runner.id, accessModes: modes, toolModes: toolSets,
+        tunnelProviders:providerIds,
         warning: 'Terminal mode has full Windows user permissions; Restricted limits file tools only'
       });
     }
@@ -44,6 +48,26 @@ async function command(req) {
         return reply(req.id, false, 'ELEVATED_CONFIRMATION_REQUIRED');
       target.elevatedAcknowledged = elevated;
       return reply(req.id, true, runner.setTarget(target).fileAccess);
+    }
+    if(req.operation==='tunnel.capabilities')
+      return reply(req.id,true,{schema:1,providers:capabilities});
+    if(req.operation==='tunnel.provider.get')
+      return reply(req.id,true,{...runner.tunnelConfig,revision:runner.status.connection.tunnelConfigRevision});
+    if(req.operation==='tunnel.provider.set'){
+      if(args.confirmed!==true)return reply(req.id,false,'CONFIRMATION_REQUIRED');
+      if(args.revision!==runner.status.connection.tunnelConfigRevision)
+        return reply(req.id,false,'REVISION_CONFLICT');
+      if(args.resetAuth===true&&args.riskAcknowledged!==true)
+        return reply(req.id,false,'ELEVATED_CONFIRMATION_REQUIRED');
+      return reply(req.id,true,runner.setTunnelProvider(args.config,
+        {clearExistingAuthorization:args.resetAuth===true}).connection);
+    }
+    if(req.operation==='tunnel.credential.set'||req.operation==='tunnel.credential.clear'){
+      if(args.confirmed!==true)return reply(req.id,false,'CONFIRMATION_REQUIRED');
+      const result=req.operation==='tunnel.credential.set'
+        ?runner.setTunnelCredential(args.provider,args.secret)
+        :runner.clearTunnelCredential(args.provider);
+      return reply(req.id,true,result);
     }
     if (req.operation === 'connection.set') {
       if (args.confirmed !== true) return reply(req.id, false, 'CONFIRMATION_REQUIRED');

@@ -5,7 +5,9 @@ import { createBridge } from './bridge.mjs';
 import { createGateway } from './gateway.mjs';
 import { createOAuthGateway } from './oauth-gateway.mjs';
 import { createSecretStore } from './secret-store.mjs';
-import { createNgrokSupervisor } from './ngrok-agent.mjs';
+import { createTunnelManager } from './tunnel-manager.mjs';
+import { createTunnelRelay } from './tunnel-relay.mjs';
+import { capabilities, validateTunnelConfig, loadTunnelConfig, saveTunnelConfig, tunnelStatus, tunnelRevision, validatePublicOrigin } from './tunnel-contract.mjs';
 import { configStatus, createInstance, writeAtomicJson } from './config.mjs';
 import { createAuditLog } from './audit.mjs';
 
@@ -16,13 +18,15 @@ function processAlive(pid) {
 }
 export class GeminiRunner {
   constructor(runtime, { id = 'gemini-c4', onEvent = () => {}, timeout = 20000,
-    tunnelFactory, ngrokBinary } = {}) {
+    tunnelFactory, ngrokBinary, cloudflaredBinary } = {}) {
     this.runtime = resolve(runtime);
     this.id = id;
     this.onEvent = onEvent;
     this.timeout = timeout;
     this.tunnelFactory = tunnelFactory;
     this.ngrokBinary = ngrokBinary ?? join(this.runtime,'bin','ngrok.exe');
+    this.cloudflaredBinary = cloudflaredBinary ?? join(this.runtime,'bin','cloudflared.exe');
+    this.relay = null;
     this.ngrokTokenConfigured = false;
     this.tunnel = null;
     this.lastStartTunnel = false;
@@ -48,6 +52,7 @@ export class GeminiRunner {
           !this.connection.issuer.startsWith('https://'))
         throw Error('INVALID_CONNECTION_CONFIGURATION');
     }
+    this.tunnelConfig = loadTunnelConfig(this.instance,this.connection);
     this.lockFile = join(this.instance, 'owner.lock');
     if (existsSync(this.targetFile)) {
       this.config = createInstance(this.runtime, id, JSON.parse(readFileSync(this.targetFile, 'utf8')));
@@ -69,14 +74,27 @@ export class GeminiRunner {
       connection: { targetIssuer: this.connection?.issuer ?? null,
         mode: this.gateway?.publicIssuer ? 'oauth' : 'local',
         oauth: live?.oauth ?? null, privateReady: live?.privateReady ?? null,
-        publicTunnel: this.tunnel?.status() ?? {state:'stopped',verified:false},
-        ngrokTokenConfigured:this.ngrokTokenConfigured },
+        publicTunnel: tunnelStatus(this.tunnel,this.tunnelConfig),
+        tunnelProvider:this.tunnelConfig.provider, tunnelCapabilities:capabilities[this.tunnelConfig.provider],
+        tunnelConfigRevision:tunnelRevision(this.tunnelConfig),
+        ngrokTokenConfigured:this.ngrokTokenConfigured,
+        tunnelCredentialsConfigured:{ngrok:this.ngrokTokenConfigured,
+          'cloudflare-named':existsSync(join(this.instance,'credentials','tunnel-cloudflare-named.dpapi'))} },
       recoveredFromInterrupted: this.recoveredFromInterrupted,
       auditHealthy: this.auditHealthy
     };
   }
+  assertStoppedForMutation(){
+    if(this.gateway||this.starting)throw Error('STOP_BEFORE_CHANGE');
+    if(!existsSync(this.lockFile))return;
+    let lock;
+    try{lock=JSON.parse(readFileSync(this.lockFile,'utf8'));}
+    catch{throw Error('INSTANCE_LOCK_UNREADABLE');}
+    if(lock?.pid===process.pid&&lock.nonce===this.owner)return;
+    if(processAlive(lock?.pid))throw Error('INSTANCE_BUSY');
+  }
   setTarget(target) {
-    if (this.gateway || this.starting) throw Error('STOP_BEFORE_CHANGE');
+    this.assertStoppedForMutation();
     const next = createInstance(this.runtime, this.id, target);
     writeAtomicJson(this.targetFile, next);
     this.config = next;
@@ -84,12 +102,10 @@ export class GeminiRunner {
     return this.status;
   }
   setEndpoint(issuer,{clearExistingAuthorization=false}={}) {
-    if (this.gateway || this.starting) throw Error('STOP_BEFORE_CHANGE');
-    let url;
-    try { url = new URL(issuer); } catch { throw Error('INVALID_HTTPS_ISSUER'); }
-    if (url.protocol !== 'https:' || url.username || url.password ||
-        url.pathname !== '/' || url.search || url.hash || !url.hostname.includes('.'))
-      throw Error('INVALID_HTTPS_ISSUER');
+    this.assertStoppedForMutation();
+    if(!['ngrok','external-https'].includes(this.tunnelConfig.provider))
+      throw Error('USE_TUNNEL_PROVIDER_SET');
+    const url = new URL(validatePublicOrigin(issuer));
     const previous = createSecretStore(this.instance).read();
     if (previous.issuer && previous.issuer !== url.origin && !clearExistingAuthorization)
       throw Error('ISSUER_CHANGE_REQUIRES_REAUTHORIZE');
@@ -97,11 +113,36 @@ export class GeminiRunner {
       createSecretStore(this.instance).clear();
     this.connection = { schema:1, issuer:url.origin };
     writeAtomicJson(this.connectionFile,this.connection);
+    if(this.tunnelConfig.provider==='ngrok'||this.tunnelConfig.provider==='external-https') {
+      const provider=/^[a-z0-9-]+\.ngrok-free\.(?:dev|app)$/i.test(url.hostname)?'ngrok':'external-https';
+      this.tunnelConfig=saveTunnelConfig(this.instance,{schema:1,provider,issuer:url.origin});
+    }
+    this.record();
+    return this.status;
+  }
+  setTunnelProvider(candidate,{clearExistingAuthorization=false}={}){
+    this.assertStoppedForMutation();
+    const next=validateTunnelConfig(candidate);
+    const current=this.connection?.issuer??null;
+    const stored=createSecretStore(this.instance).read();
+    const oldIssuer=stored.issuer??current;
+    if(oldIssuer && oldIssuer!==next.issuer && !clearExistingAuthorization)
+      throw Error('ISSUER_CHANGE_REQUIRES_REAUTHORIZE');
+    if(oldIssuer && oldIssuer!==next.issuer && clearExistingAuthorization)
+      createSecretStore(this.instance).clear();
+    this.tunnelConfig=saveTunnelConfig(this.instance,next);
+    if(next.issuer){
+      this.connection={schema:1,issuer:next.issuer};
+      writeAtomicJson(this.connectionFile,this.connection);
+    }else {
+      this.connection=null;
+      try{unlinkSync(this.connectionFile);}catch(error){if(error.code!=='ENOENT')throw error;}
+    }
     this.record();
     return this.status;
   }
   setNgrokToken(authtoken){
-    if(this.gateway||this.starting)throw Error('STOP_BEFORE_CHANGE');
+    this.assertStoppedForMutation();
     if(typeof authtoken!=='string'||!/^[-A-Za-z0-9_]{20,512}$/.test(authtoken))
       throw Error('INVALID_NGROK_TOKEN');
     createSecretStore(this.instance,'tunnel-secret.dpapi').save({authtoken});
@@ -110,11 +151,29 @@ export class GeminiRunner {
     return {configured:true};
   }
   clearNgrokToken(){
-    if(this.gateway||this.starting)throw Error('STOP_BEFORE_CHANGE');
+    this.assertStoppedForMutation();
     createSecretStore(this.instance,'tunnel-secret.dpapi').clear();
     this.ngrokTokenConfigured=false;
     this.record();
     return {configured:false};
+  }
+  setTunnelCredential(provider,secret){
+    this.assertStoppedForMutation();
+    if(provider==='ngrok')return this.setNgrokToken(secret);
+    if(provider!=='cloudflare-named')throw Error('PROVIDER_DOES_NOT_USE_CREDENTIALS');
+    if(typeof secret!=='string'||secret.length<32||secret.length>8192||
+       !/^[A-Za-z0-9._~+\/=\-]+$/.test(secret))throw Error('INVALID_TUNNEL_CREDENTIAL');
+    createSecretStore(this.instance,'tunnel-cloudflare-named.dpapi').save({token:secret});
+    this.record();
+    return {configured:true,provider};
+  }
+  clearTunnelCredential(provider){
+    this.assertStoppedForMutation();
+    if(provider==='ngrok')return this.clearNgrokToken();
+    if(provider!=='cloudflare-named')throw Error('PROVIDER_DOES_NOT_USE_CREDENTIALS');
+    createSecretStore(this.instance,'tunnel-cloudflare-named.dpapi').clear();
+    this.record();
+    return {configured:false,provider};
   }
   record() { writeAtomicJson(this.stateFile, this.status); }
   acquireOwner() {
@@ -154,7 +213,11 @@ export class GeminiRunner {
   }
   async start({oauth=false,tunnel=false}={}) {
     if (this.gateway || this.starting) throw Error('ALREADY_RUNNING');
-    if (oauth && !this.connection?.issuer) throw Error('OAUTH_ISSUER_NOT_CONFIGURED');
+    const dynamic=tunnel && !capabilities[this.tunnelConfig.provider].fixedOrigin;
+    if (oauth && !dynamic && !this.connection?.issuer) throw Error('OAUTH_ISSUER_NOT_CONFIGURED');
+    if(oauth&&!dynamic&&this.tunnelConfig.issuer &&
+       this.tunnelConfig.issuer!==this.connection?.issuer)
+      throw Error('TUNNEL_CONNECTION_ISSUER_MISMATCH');
     if (tunnel && !oauth) throw Error('TUNNEL_REQUIRES_OAUTH');
     this.starting = true;
     try {
@@ -166,30 +229,59 @@ export class GeminiRunner {
       this.bridge = await createBridge(this.config, this.instance, {
         onEvent: log, timeout: this.timeout
       });
-      this.gateway = oauth ? await createOAuthGateway(this.bridge,this.instance,{
-        issuer:new URL(this.connection.issuer),
-        configRevision:configStatus(this.config,this.config).revision,
-        timeout:this.timeout,onEvent:log
-      }) : await createGateway(this.bridge,{
-        timeout:this.timeout,onEvent:log
-      });
-      this.lastStartOAuth = oauth;
-      this.lastStartTunnel = tunnel;
-      if(tunnel){
-        const authtoken=createSecretStore(this.instance,'tunnel-secret.dpapi').read().authtoken;
-        const options={issuer:this.connection.issuer,port:this.gateway.port,
-          binary:this.ngrokBinary,authtoken,runDir:join(this.instance,'tunnel'),onEvent:log};
-        this.tunnel=this.tunnelFactory?.(options) ?? createNgrokSupervisor(options);
-        await this.tunnel.start();
+      if(dynamic){
+        // Keep the public entry inaccessible while the random hostname is unknown.
+        this.relay=await createTunnelRelay();
+        const options={provider:this.tunnelConfig.provider,issuer:null,
+          port:this.relay.port,binary:this.cloudflaredBinary,
+          runDir:join(this.instance,'tunnel'),onEvent:log,
+          onLost:()=>this.relay?.disable()};
+        this.tunnel=this.tunnelFactory?.(options) ?? createTunnelManager(this.tunnelConfig,options);
+        const discovered=await this.tunnel.start();
+        const issuer=validatePublicOrigin(discovered?.origin??this.tunnel.status()?.origin);
+        if(this.tunnelConfig.provider==='cloudflare-quick' &&
+            !/^[a-z0-9-]+\.trycloudflare\.com$/i.test(new URL(issuer).hostname))
+          throw Error('INVALID_QUICK_TUNNEL_ORIGIN');
+        const store=createSecretStore(this.instance);
+        if(store.read().issuer && store.read().issuer!==issuer){
+          store.clear();log({event:'oauth-issuer-reissued'});
+        }
+        this.connection={schema:1,issuer};
+        writeAtomicJson(this.connectionFile,this.connection);
+        this.gateway=await createOAuthGateway(this.bridge,this.instance,{
+          issuer:new URL(issuer),configRevision:configStatus(this.config,this.config).revision,
+          timeout:this.timeout,onEvent:log
+        });
+        this.relay.attach(this.gateway.port);
+      }else {
+        this.gateway=oauth?await createOAuthGateway(this.bridge,this.instance,{
+          issuer:new URL(this.connection.issuer),
+          configRevision:configStatus(this.config,this.config).revision,
+          timeout:this.timeout,onEvent:log
+        }):await createGateway(this.bridge,{timeout:this.timeout,onEvent:log});
+        if(tunnel){
+          const authtoken=this.tunnelConfig.provider==='ngrok'
+            ?createSecretStore(this.instance,'tunnel-secret.dpapi').read().authtoken:undefined;
+          const options={provider:this.tunnelConfig.provider,issuer:this.connection.issuer,
+            port:this.gateway.port,binary:this.ngrokBinary,authtoken,
+            runDir:join(this.instance,'tunnel'),onEvent:log};
+          this.tunnel=this.tunnelFactory?.(options) ?? createTunnelManager(this.tunnelConfig,options);
+          await this.tunnel.start();
+        }
       }
+      this.lastStartOAuth=oauth;
+      this.lastStartTunnel=tunnel;
       this.latestToken = this.gateway.token ?? null;
       this.record();
       return {...this.status,...(this.latestToken?{token:this.latestToken}:{})};
     } catch (error) {
+      this.relay?.disable();
       await this.tunnel?.stop().catch(()=>{});
       this.tunnel=null;
       await this.gateway?.close().catch(() => {});
+      await this.relay?.close().catch(() => {});
       await this.bridge?.close().catch(() => {});
+      this.relay=null;
       this.gateway = null;
       this.bridge = null;
       this.latestToken = null;
@@ -198,22 +290,27 @@ export class GeminiRunner {
     } finally { this.starting = false; }
   }
   async stop() {
-    if (!this.gateway && !this.bridge) {
+    if (!this.gateway && !this.bridge && !this.relay) {
       this.releaseOwner();
       return this.status;
     }
+    this.relay?.disable();
     try { await this.tunnel?.stop(); }
     finally {
       this.tunnel=null;
       try { await this.gateway?.close(); }
       finally {
-        try { await this.bridge?.close(); }
+        try { await this.relay?.close(); }
         finally {
-          this.gateway = null;
-          this.bridge = null;
-          this.latestToken = null;
-          this.record();
-          this.releaseOwner();
+          this.relay=null;
+          try { await this.bridge?.close(); }
+          finally {
+            this.gateway=null;
+            this.bridge=null;
+            this.latestToken=null;
+            this.record();
+            this.releaseOwner();
+          }
         }
       }
     }
