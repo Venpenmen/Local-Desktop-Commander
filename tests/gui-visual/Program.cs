@@ -154,6 +154,26 @@ internal static class Program
                 versionToggle.IsChecked=false;
                 Check(versionPanel.Visibility==Visibility.Collapsed,
                     "B5 version details collapse without a management mutation");
+                var verifyButton=(Button)window.FindName("VersionVerifyButton")!;
+                var activateButton=(Button)window.FindName("VersionManagedActivate")!;
+                var removeButton=(Button)window.FindName("VersionRemoveButton")!;
+                var installButton=(Button)window.FindName("VersionInstallButton")!;
+                Check(!activateButton.IsEnabled && !removeButton.IsEnabled && !installButton.IsEnabled,
+                    "B5 dangerous version actions gated for single P6");
+                Check(verifyButton.IsEnabled ||
+                      ((TextBlock)window.FindName("VersionVerifiedStatus")!).Text.Contains("选择版本"),
+                    "B5 verification action is gated by actual selection and public capabilities");
+                var versions=(ListBox)window.FindName("VersionList")!;
+                versions.SelectedIndex=0;
+                await Task.Delay(80);
+                Check(verifyButton.IsEnabled, "B5 public version.verify enabled for actual registered P6");
+                verifyButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                var verifyStatus=(TextBlock)window.FindName("VersionVerifiedStatus")!;
+                for(var i=0;i<80 && !(verifyStatus.Text.Contains("unmanaged") ||
+                      verifyStatus.Text.Contains("检查失败"));i++)await Task.Delay(150);
+                Check(verifyStatus.Text.Contains("unmanaged") &&
+                      !activateButton.IsEnabled && !removeButton.IsEnabled,
+                    "B5 real legacy P6 verification reports unmanaged and prevents activation or removal");
                 Screenshot(layout,"gui-b5-versions-light.png");
                 tabs.SelectedIndex=5;
                 await Task.Delay(180);

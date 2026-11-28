@@ -148,9 +148,9 @@ public partial class MainWindow : Window
     private bool Confirm(string message) => ConfirmationForTests?.Invoke(message) ??
         MessageBox.Show(this, message, "确认操作", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
 
-    private async Task Mutate(string op, object arguments)
+    private async Task Mutate(string op, object arguments, TimeSpan? timeout = null)
     {
-        var task = await client.RequestAsync(op, arguments);
+        var task = await client.RequestAsync(op, arguments, timeout);
         var state = GuiState.Value(task, "state");
         if (state != "completed")
             throw new InvalidOperationException("操作未成功完成：" + (state ?? "未知"));

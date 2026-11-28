@@ -236,8 +236,27 @@ Require(registry.Entries.Count==1 && (registry.HasDistinctRollback
     ? registry.RollbackNotice.Contains("工具模式")
     : registry.RollbackNotice.Contains("暂无")),
     "B5 single P6 registry distinguishes valid mode-only rollback from cross-version rollback");
-Require(registry.InstallationNotice.Contains("未提供安装"),
-    "B5 version installer explicitly requires missing public manager API");
+Require(registry.InstallationNotice.Contains("公共版本生命周期接口") &&
+        caps.GetProperty("operations").EnumerateArray().Any(x=>x.GetString()=="version.install") &&
+        caps.GetProperty("operations").EnumerateArray().Any(x=>x.GetString()=="version.verify") &&
+        caps.GetProperty("operations").EnumerateArray().Any(x=>x.GetString()=="version.activate") &&
+        caps.GetProperty("operations").EnumerateArray().Any(x=>x.GetString()=="version.remove"),
+    "B5 management v1 backward-compatible lifecycle extension advertised and surfaced");
+Require(B5Versions.NeedsManagedActivation(new RegisteredVersion("canarya","A","installed-verified",14,21)) &&
+        !B5Versions.NeedsManagedActivation(new RegisteredVersion("p6","P6","legacy",14,21)),
+    "B5 managed versions must use checked activation rather than unverified legacy select");
+var syntheticRegistry=System.Text.Json.Nodes.JsonNode.Parse(state.GetRawText())!;
+syntheticRegistry["configuration"]!["rollback"]!["version"]="canarya";
+using(var syntheticVersions=JsonDocument.Parse(
+    "[{\"Id\":\"p6\",\"Label\":\"P6\",\"Status\":\"legacy\",\"FilesTools\":14,\"TerminalTools\":21}," +
+    "{\"Id\":\"canarya\",\"Label\":\"A\",\"Status\":\"installed-verified\",\"FilesTools\":14,\"TerminalTools\":21}]"))
+using(var syntheticState=JsonDocument.Parse(syntheticRegistry.ToJsonString()))
+{
+    registry.Apply(syntheticVersions.RootElement,syntheticState.RootElement);
+    Require(registry.IsManagedRollback && registry.RollbackNotice.Contains("完整性校验"),
+        "B5 managed rollback must route through verify and checked activation");
+}
+registry.Apply(versions,state);
 using(var emptyVersions=JsonDocument.Parse("[]"))
 {
     try {registry.Apply(emptyVersions.RootElement,state);throw new Exception("empty registry accepted");}

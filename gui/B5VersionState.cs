@@ -49,8 +49,13 @@ public sealed class B5Versions : INotifyPropertyChanged
         RollbackId is null || !entries.Any(x=>x.Id==RollbackId) ? "没有已注册且可用的回滚目标" :
         !HasDistinctRollback ? "回滚目标与当前配置相同，暂无可执行的回滚" :
         RollbackId == TargetId ? "当前回滚候选仅切换工具模式，并非跨版本回滚" :
+        IsManagedRollback ? "回滚候选是受管理版本；请选中它，先执行完整性校验，再使用受控升级路径恢复。" :
         "已注册另一版本作为回滚目标；实际切换仍需确认和健康检查";
-    public string InstallationNotice => "当前共享管理 API v1 未提供安装、注册或删除版本的操作；安装包仅可离线预检。";
+    public bool IsManagedRollback => RollbackId is not null &&
+        entries.Any(x => x.Id == RollbackId && NeedsManagedActivation(x));
+    public string InstallationNotice => "已接入公共版本生命周期接口。安装仅接受可信外部 SHA-256 与受控包清单；安全安装不自动启用。完整性与删除需经公共管理核心核验。";
+    public static bool NeedsManagedActivation(RegisteredVersion item) =>
+        item.Status == "installed-verified";
     public bool CanChoose(string? version) =>
         Fresh && version is not null && entries.Any(x=>x.Id==version);
     public void Apply(JsonElement versions, JsonElement snapshot)

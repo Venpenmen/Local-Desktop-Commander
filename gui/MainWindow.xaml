@@ -634,8 +634,16 @@
                                     <Button x:Name="VersionSelectButton" Content="切换至选中版本"
                                             Click="VersionSelect_Click" IsEnabled="False"
                                             Style="{StaticResource PrimaryButton}"/>
+                                    <Button x:Name="VersionManagedActivate" Content="受控升级并验收"
+                                            Click="VersionManagedActivate_Click" IsEnabled="False"/>
+                                    <Button x:Name="VersionVerifyButton" Content="完整性校验"
+                                            Click="VersionVerify_Click" IsEnabled="False"/>
+                                    <Button x:Name="VersionRemoveButton" Content="删除未使用版本"
+                                            Click="VersionRemove_Click" IsEnabled="False"/>
                                     <Button Content="查看连接诊断" Click="VersionDiagnostics_Click"/>
                                 </WrapPanel>
+                                <TextBlock x:Name="VersionVerifiedStatus" Style="{StaticResource Hint}"
+                                           Text="选择版本后可检查已安装文件的完整性。" Margin="0,9,0,0"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource Card}">
@@ -676,6 +684,9 @@
                                 <WrapPanel>
                                     <Button x:Name="VersionPreflightButton" Content="选择 ZIP 并预检"
                                             Click="VersionPreflight_Click"/>
+                                    <Button x:Name="VersionInstallButton" Content="安装已校验的包"
+                                            Click="VersionInstall_Click" IsEnabled="False"
+                                            Style="{StaticResource PrimaryButton}"/>
                                     <Button x:Name="VersionCancelPreflight" Content="取消预检"
                                             Click="VersionCancelPreflight_Click" IsEnabled="False"/>
                                 </WrapPanel>
