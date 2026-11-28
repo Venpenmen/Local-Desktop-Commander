@@ -36,7 +36,7 @@ delete env.CONTROL_PLANE_API_KEY;
 delete env.LOCAL_DC_TRANSPORT;
 const manager = await fs.mkdtemp(path.join(scratch, 'access-management-'));
 await fs.cp(path.join(project, 'management'), path.join(manager, 'management'), {
-  recursive: true, filter: file => !['versions.json', 'runtime'].includes(path.basename(file)),
+  recursive: true, filter: file => !['versions.json', 'runtime', 'instance.local.json'].includes(path.basename(file)),
 });
 await fs.copyFile(path.join(manager, 'management/versions.example.json'), path.join(manager, 'management/versions.json'));
 await fs.mkdir(path.join(manager, 'engine/workspace'), { recursive: true });

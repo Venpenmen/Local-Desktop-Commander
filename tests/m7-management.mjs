@@ -11,7 +11,7 @@ await fs.mkdir(scratch, { recursive: true });
 const project = await fs.mkdtemp(path.join(scratch, 'm7 中文 fixtures '));
 const management = path.join(project, 'management');
 await fs.cp(path.join(source, 'management'), management, {
-  recursive: true, filter: file => !['runtime', 'versions.json'].includes(path.basename(file)),
+  recursive: true, filter: file => !['runtime', 'versions.json', 'instance.local.json'].includes(path.basename(file)),
 });
 await fs.cp(path.join(source, 'transports/openai/manifest.json'), path.join(project, 'transports/openai/manifest.json'));
 await fs.copyFile(path.join(management, 'versions.example.json'), path.join(management, 'versions.json'));
