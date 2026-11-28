@@ -37,4 +37,6 @@ Cloudflare Dashboard 由用户手动创建 Tunnel 和 Published Route；LDC 不�
 - 尚无正式独立 ldc-gemini Tunnel、Token/Route 的部署证据；真实公网站点 OAuth/MCP L3、Gemini 网页 L5、Windows 整机重启与跨 SakuraCat 节点切换不得因本地测试通过而声明 PASS。
 - 用户创建正式 Tunnel 前，不得复用研究凭据或直接更换 research 入口。涉及全局网络与重启的测试留维护窗口。
 
-详细验收见 C5-N-ACCEPTANCE.md；工程发展路径 C5-N → C5-L5 → C6 公共管理 → C7 GUI。
+详细验收见 C5-N-ACCEPTANCE.md、C5-N8-ACCEPTANCE.md；工程发展路径 C5-N → C5-L5 → C6 公共管理 → C7 GUI。
+
+2026-11-28 C5-N8 增量：用户已创建独立 Named Tunnel / Published Route，DPAPI Token 加密导入；经真实公网 OAuth PKCE、MCP initialize、14 工具发现、隔离 read_file、撤销 401、受管重启、单独自有连接器故障恢复与 refresh grant 重启后继续有效。Windows 信号退出误判和 loopback X-Forwarded-For 告警已修复。当前有一个独立本地控制台会话管理实例，关闭控制台会停止服务，且不具备开机自动启动；用户在 Gemini 官网配好真实回调并完成浏览器 L5 之前不可宣称官网已验收。

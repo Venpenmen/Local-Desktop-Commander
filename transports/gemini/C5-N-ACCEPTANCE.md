@@ -60,3 +60,19 @@ cloudflare-named-agent.test.mjs：精确 OAuth 元数据与未授权拒绝；Tok
 | N-T25 | 交付检查点 | 文档、忽略证据、branch commit/push 与 SHA 校验，以 Git 验收为准 |
 
 最终 C5-N 真实公网启动和 Gemini 官方网页 L5 只有拿到独立 Tunnel、Route、Token 并由用户在官方网页进行授权与工具调用后才能转为 VERIFIED。涉及全局代理、节点、断网、Windows 整机重启的验收保持 DEFERRED_MAINTENANCE。
+
+## 2026-11-28 C5-N8 实机增量验收（覆盖旧待验快照）
+
+用户已创建并绑定独立 ldc-gemini Tunnel、DPAPI Token 与 Published Route（gemini.venpenmen.dpdns.org → http://127.0.0.1:18767）。上文 N-T08、N-T13、N-T14、N-T15、N-T16 的“缺少真实公网”限制由本节增量证据更新：
+
+- N-T08：正式受管 cloudflared **真实启动、停止、重启及自动恢复 VERIFIED**。
+- N-T09：对自有 child 的 PID、创建时间、私有二进制路径及 token-file 参数实机核验后故障注入；其他进程未终止。PID 重用等不可控场景继续留维护窗口。
+- N-T10／N-T11／N-T12：真实故障注入后自动重连和公网验证恢复 **VERIFIED（自有连接器，非全局断网）**。
+- N-T13：固定 issuer 和 localPort 的真实重启 **VERIFIED**。
+- N-T14／N-T15：真实 HTTPS OAuth 元数据 200、MCP 未授权 401 Bearer **VERIFIED**。
+- N-T16／N-T17：独立公网测试客户端真实 OAuth + MCP initialize、14 工具发现和 read_file 成功，Restricted 下 terminal 拒绝 **VERIFIED（Restricted/14 公网）**；Full/21 官网 L5 未执行。
+- N-T18／N-T19：真实公网 Refresh Grant 跨重启有效，撤销后 401 **VERIFIED（独立测试客户端）**；Gemini 官方网页持久会话仍待人工实测。
+- N-T21：C5-N8 修复后的 Gemini **全量 54/54 PASS、0 fail、退出码0**；原 C5-N 53/53 为改动前基线。
+- N-T25：本轮最终 Git 交付单独记录。
+
+发现并修复 Windows signalCode / exitCode 退出误判与 OAuth 反向代理限流警告；新增针对信号退出的真实语义回归。40 次公网定向采样 40/40，P95 568ms。详细流程、证据和未完成边界见 **C5-N8-ACCEPTANCE.md**。**C5-L5 Gemini 官方网页仍 PENDING_HUMAN_INPUT**，不能将本轮 Node 公网客户端验收冒充 Gemini 网页实际工具调用；全局代理/断网/系统重启继续 DEFERRED_MAINTENANCE。

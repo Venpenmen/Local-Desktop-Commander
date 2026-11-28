@@ -253,3 +253,25 @@ test('C5-N fixed Published Route requires stable configurable local port',()=>{
   assert.throws(()=>validateTunnelConfig({schema:1,provider:'external-https',
     issuer:'https://other.example.com',localPort:19342}),/INVALID_TUNNEL_CONFIGURATION/);
 });
+
+test('C5-N Windows signal-only exit counts as terminated, releases token and owner',async()=>{
+  const id=uid(),runDir=join(runtime,'signal-'+id,'tunnel');
+  const s=supervisor({runDir,spawnAgent:()=>{
+    const child=fakeAgent();
+    child.signalCode=null;
+    child.kill=()=>{
+      if(child.signalCode)return false;
+      child.signalCode='SIGTERM';
+      queueMicrotask(()=>child.emit('exit',null,'SIGTERM'));
+      return true;
+    };
+    return child;
+  }});
+  await s.start();
+  await s.stop();
+  assert.equal(s.status().state,'stopped');
+  assert.equal(s.status().pid,null);
+  assert.equal(existsSync(join(runDir,'cloudflare-named-token.tmp')),false);
+  const restarted=supervisor({issuer:s.status().origin,runDir});
+  await restarted.start();await restarted.stop();
+});

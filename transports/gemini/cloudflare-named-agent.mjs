@@ -11,6 +11,8 @@ import { verifyPublicMcp } from './ngrok-agent.mjs';
 
 export const verifiedCloudflaredSha256='555b46c85582461d189cac30d14ad05480d612613801be9f110b8ce08c5b2113';
 const scrub = e => String(e?.message??e).replace(/[A-Za-z0-9._~+\/=\-]{40,}/g,'[REDACTED]');
+// On Windows a signal-terminated child can retain exitCode=null while signalCode is set.
+const childAlive = child => Boolean(child && child.exitCode===null && child.signalCode==null);
 function ps(script, timeout=15000){
   return execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',script],
     {windowsHide:true,encoding:'utf8',stdio:['ignore','pipe','ignore'],timeout}).trim();
@@ -95,7 +97,7 @@ export function createCloudflareNamedSupervisor({
   const privateOwnerFile=join(runDir,'cloudflare-named-owner.json');
   let child=null,stopped=true,phase='stopped',verified=false,lastVerifiedUtc=null;
   let lastError=null,retryAtUtc=null,attempt=0,ownerNonce=null,monitor=null,retry=null,generation=0;
-  const status=()=>({state:phase,origin,verified,pid:child?.exitCode===null?child.pid:null,
+  const status=()=>({state:phase,origin,verified,pid:childAlive(child)?child.pid:null,
     lastVerifiedUtc,lastError,retryAtUtc,attempt});
   const event=code=>{try{onEvent({event:code});}catch{}};
   const cleanupFile=file=>{try{if(existsSync(file)&&!lstatSync(file).isSymbolicLink())unlinkSync(file);}catch{}};
@@ -161,10 +163,10 @@ export function createCloudflareNamedSupervisor({
   }
   async function probe(){
     const checking=child;
-    if(stopped||!checking||checking.exitCode!==null)return false;
+    if(stopped||!childAlive(checking))return false;
     let success=false;
     try{success=Boolean(await verify(origin));}catch{}
-    if(stopped||child!==checking||checking.exitCode!==null)return false;
+    if(stopped||child!==checking||!childAlive(checking))return false;
     verified=success;lastVerifiedUtc=new Date().toISOString();
     phase=success?'ready':'degraded';event(success?'tunnel-public-verified':'tunnel-public-unverified');
     return success;
@@ -207,15 +209,15 @@ export function createCloudflareNamedSupervisor({
         monitor=setInterval(()=>{void probe();},monitorInterval);monitor.unref?.();
       }
     }catch(error){
-      if(launched&&launched.exitCode===null&&typeof launched.kill==='function'){
+      if(childAlive(launched)&&typeof launched.kill==='function'){
         const exited=new Promise(done=>launched.once('exit',done));
         try{launched.kill();}catch{}
         await Promise.race([exited,sleep(3500)]);
-        if(launched.exitCode===null){
+        if(childAlive(launched)){
           try{launched.kill('SIGKILL');}catch{}
           await Promise.race([exited,sleep(1500)]);
         }
-        if(launched.exitCode===null)throw Error('NAMED_PROCESS_STILL_RUNNING');
+        if(childAlive(launched))throw Error('NAMED_PROCESS_STILL_RUNNING');
       }
       child=null;cleanupFile(tokenFile);throw error;
     }
@@ -228,7 +230,7 @@ export function createCloudflareNamedSupervisor({
       try{await launch();return status();}
       catch(error){
         stopped=true;cleanClocks();
-        if(child&&child.exitCode===null)throw Error('NAMED_PROCESS_STILL_RUNNING');
+        if(childAlive(child))throw Error('NAMED_PROCESS_STILL_RUNNING');
         cleanupFile(tokenFile);releaseOwner();throw error;
       }
     },
@@ -236,7 +238,7 @@ export function createCloudflareNamedSupervisor({
       if(stopped&&!ownerNonce)return;
       stopped=true;generation++;cleanClocks();verified=false;phase='stopped';retryAtUtc=null;
       const owned=child;
-      if(owned&&owned.exitCode===null){
+      if(childAlive(owned)){
         // Only the ChildProcess returned from our own spawn can be stopped.
         if(executable){
           const record=JSON.parse(readFileSync(privateOwnerFile,'utf8'));
@@ -246,12 +248,12 @@ export function createCloudflareNamedSupervisor({
         const exited=new Promise(resolve=>owned.once('exit',resolve));
         owned.kill();
         await Promise.race([exited,sleep(3500)]);
-        if(owned.exitCode===null&&typeof owned.kill==='function'){
+        if(childAlive(owned)&&typeof owned.kill==='function'){
           const forceExited=new Promise(resolve=>owned.once('exit',resolve));
           owned.kill('SIGKILL');
           await Promise.race([forceExited,sleep(1500)]);
         }
-        if(owned.exitCode===null)throw Error('NAMED_PROCESS_STILL_RUNNING');
+        if(childAlive(owned))throw Error('NAMED_PROCESS_STILL_RUNNING');
       }
       child=null;
       cleanupFile(tokenFile);releaseOwner();event('tunnel-agent-stopped');

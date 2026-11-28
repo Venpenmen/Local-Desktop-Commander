@@ -192,6 +192,8 @@ export function createGeminiOAuth({
   };
   const app=express();
   app.disable('x-powered-by');
+  // Only the loopback Cloudflare relay may supply forwarded client IP information.
+  app.set('trust proxy','loopback');
   app.use((req,res,next)=>{
     res.set({'Cache-Control':'no-store','Referrer-Policy':'no-referrer',
       'Content-Security-Policy':"default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"});

@@ -2,6 +2,8 @@
 
 ## Unreleased — M7
 
+- Gemini C5-N8 正式 Cloudflare Named Tunnel 经真实公网 OAuth PKCE、14 工具发现、隔离文件读取、撤销、连接器异常恢复与 OAuth 刷新持久化验收；修复 Windows signalCode 退出误判和回环反向代理限流警告。官方 Gemini 网页 L5 仍待用户实际授权验收。
+
 - Gemini 独立支线新增 C5-N Cloudflare Named Tunnel 受管连接器：固定回环 OAuth 端口、签名及哈希校验、DPAPI 凭据、临时文件 ACL、独占及有限恢复、公网元数据拒绝验证；正式专属域名/Tunnel 与 Gemini 网页 L5 验收仍待用户接入。
 
 - Windows 盘符根兼容，新增独立的受限和完全文件访问模式，并保留 14/21 项工具。
