@@ -46,8 +46,12 @@ function Start-LdcLocalDevProxy($Version,[string]$RunMode) {
     Remove-Item Env:CONTROL_PLANE_API_KEY -ErrorAction SilentlyContinue
     $env:LOCAL_DC_TUNNEL_TERMINAL = if ($RunMode -eq 'terminal') { '1' } else { '0' }
     $env:NO_PROXY = 'localhost,127.0.0.1,::1'
+    $mcpSource = if ($Version.Id -eq 'p6') { 'engine/stdio.mjs' }
+        else { 'versions/' + $Version.Id + '/stdio.mjs' }
+    # The registered engine version owns its own MCP entrypoint; P6 legacy args stay unchanged.
+    $mcpCommand = 'node ' + $mcpSource + ' --tunnel'
     $args = @('dev','proxy','--listen','127.0.0.1:0','--health-listen-addr','127.0.0.1:0',
-        '--mcp-command','"node engine/stdio.mjs --tunnel"','--duration',$duration,
+        '--mcp-command',('"{0}"' -f $mcpCommand),'--duration',$duration,
         '--url-file',('"{0}"' -f $Version.EndpointFile),'--health-url-file',('"{0}"' -f $Version.HealthFile))
     $child = Start-Process -FilePath $script:Tunnel -ArgumentList $args -WorkingDirectory $script:Project -WindowStyle Hidden -PassThru -RedirectStandardError $Version.LogFile
     try {
