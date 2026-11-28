@@ -81,7 +81,7 @@ test('C5-U CLI provider contract, explicit reset, DPAPI secret isolation and no 
       assert(cleared.ok&&!cleared.result.configured);
       assert.equal((await query('state')).result.connection.tunnelCredentialsConfigured['cloudflare-named'],false);
       const runtimeCheck=await query('start',{confirmed:true,oauth:true,tunnel:true});
-      assert.equal(runtimeCheck.error.code,'TUNNEL_PROVIDER_NOT_INSTALLED');
+      assert.equal(runtimeCheck.error.code,'NAMED_TOKEN_MISSING');
       assert.equal((await query('state')).result.state,'stopped');
     }finally{
       child.stdin.end();

@@ -8,7 +8,7 @@ export const providerIds = Object.freeze(['ngrok','cloudflare-quick','cloudflare
 export const capabilities = Object.freeze({
   ngrok:{fixedOrigin:true,managed:true,requiresAccount:true,requiresDomain:false,requiresSecret:true,streaming:'unknown',implementation:'local'},
   'cloudflare-quick':{fixedOrigin:false,managed:true,requiresAccount:false,requiresDomain:false,requiresSecret:false,streaming:'no-sse',implementation:'local'},
-  'cloudflare-named':{fixedOrigin:true,managed:true,requiresAccount:true,requiresDomain:true,requiresSecret:true,streaming:'verify-required',implementation:'reserved'},
+  'cloudflare-named':{fixedOrigin:true,managed:true,requiresAccount:true,requiresDomain:true,requiresSecret:true,streaming:'sse-verified',implementation:'local'},
   'external-https':{fixedOrigin:true,managed:false,requiresAccount:false,requiresDomain:false,requiresSecret:false,streaming:'verify-required',implementation:'local'}
 });
 export function validatePublicOrigin(input){
@@ -34,8 +34,14 @@ export function validateTunnelConfig(value){
   if(provider==='cloudflare-named'&&value.tunnelId!==undefined&&
      (typeof value.tunnelId!=='string'||!/^[a-zA-Z0-9-]{4,128}$/.test(value.tunnelId)))
     throw Error('INVALID_NAMED_TUNNEL_ID');
+  if(provider==='cloudflare-named'&&value.localPort!==undefined&&
+     (!Number.isInteger(value.localPort)||value.localPort<1024||value.localPort>65535))
+    throw Error('INVALID_NAMED_LOCAL_PORT');
+  if(provider!=='cloudflare-named'&&value.localPort!==undefined)
+    throw Error('INVALID_TUNNEL_CONFIGURATION');
   if(provider==='external-https'&&value.tunnelId!==undefined)throw Error('INVALID_TUNNEL_CONFIGURATION');
-  return Object.freeze({schema:1,provider,issuer,...(provider==='cloudflare-named'?{tunnelId:value.tunnelId}:{})});
+  return Object.freeze({schema:1,provider,issuer,...(provider==='cloudflare-named'
+    ?{tunnelId:value.tunnelId,localPort:value.localPort??18767}:{})});
 }
 export function initialTunnelConfig(connection){
   const issuer=connection?.issuer??null;

@@ -38,7 +38,7 @@ test('C5-U provider schema, capabilities, fixed/dynamic origins and unsafe URL r
     /INVALID_TUNNEL_CONFIGURATION/);
 });
 
-test('C5-U generic tunnel manager: owned lifecycle, external read-only and Named fail-closed stub',async()=>{
+test('C5-U generic tunnel manager: owned lifecycle, external read-only and Named requires credentials',async()=>{
   let launches=0,stops=0;
   const manager=createTunnelManager({schema:1,provider:'ngrok',issuer:'https://chosen.ngrok-free.dev'},{
     factory:()=>({
@@ -63,8 +63,8 @@ test('C5-U generic tunnel manager: owned lifecycle, external read-only and Named
   await external.stop();
   assert.equal(external.status().state,'stopped');
   const named=createTunnelManager({schema:1,provider:'cloudflare-named',
-    issuer:'https://gemini.example.com'});
-  await assert.rejects(named.start(),/TUNNEL_PROVIDER_NOT_INSTALLED/);
+    issuer:'https://gemini.example.com'},{port:18766});
+  await assert.rejects(named.start(),/NAMED_TOKEN_MISSING/);
   assert.equal(named.status().state,'stopped');
 });
 
@@ -171,7 +171,7 @@ test('C5-U supervisor preflight is side-effect-free and concurrent start/stop ca
   assert.equal(missing.checkPrerequisites().ready,false);
   const future=createTunnelManager({schema:1,provider:'cloudflare-named',issuer:'https://gemini.example.com'});
   assert.equal(future.checkPrerequisites().ready,false);
-  assert.equal(future.capabilities.implementation,'reserved');
+  assert.equal(future.capabilities.implementation,'local');
   let release,starts=0,stops=0;
   const latch=new Promise(resolve=>{release=resolve;});
   const manager=createTunnelManager({schema:1,provider:'ngrok',

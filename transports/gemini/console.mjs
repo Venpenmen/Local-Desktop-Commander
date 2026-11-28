@@ -156,7 +156,7 @@ try{
         }
         case '13':{
           if(runner.status.state!=='stopped')throw Error('STOP_BEFORE_CHANGE');
-          stdout.write('1 ngrok (fixed Free) / 2 Cloudflare Quick (dynamic) / 3 Cloudflare Named (reserved) / 4 External HTTPS\n');
+          stdout.write('1 ngrok (fixed Free) / 2 Cloudflare Quick (dynamic) / 3 Cloudflare Named (fixed HTTPS) / 4 External HTTPS\n');
           const providerChoice=await question('Provider number: ');
           const providers={'1':'ngrok','2':'cloudflare-quick','3':'cloudflare-named','4':'external-https'};
           const provider=providers[providerChoice];
@@ -167,6 +167,8 @@ try{
           if(provider==='cloudflare-named'){
             const tid=await question('Tunnel ID (optional; press Enter to omit): ');
             if(tid)config.tunnelId=tid;
+            const localPort=await question('Fixed localhost OAuth Gateway port [18767]: ');
+            config.localPort=localPort?Number(localPort):18767;
           }
           const current=runner.status.connection.targetIssuer;
           const changed=current&&current!==issuer;
@@ -178,7 +180,7 @@ try{
           runner.setTunnelProvider(config,{clearExistingAuthorization:reset});
           stdout.write('Tunnel provider configuration saved.\n');
           if(provider==='cloudflare-named')
-            stdout.write('Named adapter reserved: public start is NOT IMPLEMENTED until validation.\n');
+            stdout.write('Named provider selected. Configure an isolated Tunnel/hostname and import its token locally.\n');
           if(provider==='cloudflare-quick')
             stdout.write('Quick dynamic domain is assigned on each tunnel start; reauthorize on change.\n');
           break;

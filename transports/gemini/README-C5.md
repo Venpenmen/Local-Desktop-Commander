@@ -28,10 +28,10 @@
 
 ## C5-U 可选公网提供商（统一接口候选）
 
-C5-U 已在 Gemini 独立分支中增加 TunnelManager。原 ngrok 域名和本地 DPAPI Token 的 [1]/[2]/[3] 流程保留。独立控制台增加 [13] 选择提供商、[14]/[15] 配置或清理 Named 预留凭据；CLI 新增 tunnel.capabilities、tunnel.provider.get/set、tunnel.credential.set/clear。具体配置和安全边界见 C5-U-ARCHITECTURE.md。
+C5-U 已在 Gemini 独立分支中增加 TunnelManager。原 ngrok 域名和本地 DPAPI Token 的 [1]/[2]/[3] 流程保留。独立控制台增加 [13] 选择提供商、[14]/[15] 配置或清理 Named 的 DPAPI 凭据；CLI 新增 tunnel.capabilities、tunnel.provider.get/set、tunnel.credential.set/clear。具体配置和安全边界见 C5-U-ARCHITECTURE.md。
 
 - Cloudflare Quick：无需账户和固定域名，启动时自动发现随机 trycloudflare.com 地址，建立发行地址后才能开放 OAuth；进程重建分配的新域名会使旧授权失效，需重新关联 Gemini。此能力仅通过本地真实 OAuth/HTTP + mock Agent 验收，未经新一轮真实公网 L5。Quick Tunnel 不支持 SSE。
-- Cloudflare Named：预留固定域名与 DPAPI Token 契约，目前启动返回 TUNNEL_PROVIDER_NOT_INSTALLED；需等待独立 Cloudflare 专项会话研究与实机部署。
+- Cloudflare Named（C5-N）：已接入本地受管 Agent，使用固定 HTTPS Issuer、可配置固定回环 localPort（默认 18767）、DPAPI Token、受限 ACL 临时文件和单实例进程所有权；真实公网必须由用户创建独立 Tunnel 与 Published Route 后验收。详见 C5-N-HANDOFF.md 和 C5-N-ACCEPTANCE.md。
 - External HTTPS：外部公网转发由用户维护，LDC 只核对 OAuth 资源元数据并提供本地回环 OAuth 端口，不停止不属于自身的进程。
 - ngrok：原 C5 适配器保留且经过回归；需账户提供固定免费域名与本人本地输入 authtoken 方可公网验收。
 

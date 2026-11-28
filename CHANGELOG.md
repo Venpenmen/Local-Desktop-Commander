@@ -2,6 +2,8 @@
 
 ## Unreleased — M7
 
+- Gemini 独立支线新增 C5-N Cloudflare Named Tunnel 受管连接器：固定回环 OAuth 端口、签名及哈希校验、DPAPI 凭据、临时文件 ACL、独占及有限恢复、公网元数据拒绝验证；正式专属域名/Tunnel 与 Gemini 网页 L5 验收仍待用户接入。
+
 - Windows 盘符根兼容，新增独立的受限和完全文件访问模式，并保留 14/21 项工具。
 - 完成统一管理后端：PowerShell 5.1、JSON stdio 管理协议 v1、共享管理核心、TUI/CLI 管理接口、OpenAI 传输适配及扩展清单契约。
 - 完成独立运行实例隔离：配置、凭据命名空间、操作锁、进程归属、日志、临时目录、文件根及动态回环端口。

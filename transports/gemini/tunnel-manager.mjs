@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { createNgrokSupervisor, verifyPublicMcp } from './ngrok-agent.mjs';
 import { createCloudflareQuickSupervisor } from './cloudflare-agent.mjs';
+import { createCloudflareNamedSupervisor } from './cloudflare-named-agent.mjs';
 import { capabilities, validateTunnelConfig } from './tunnel-contract.mjs';
 
 export function checkTunnelPrerequisites(config,options={}){
@@ -12,7 +13,10 @@ export function checkTunnelPrerequisites(config,options={}){
   }
   if(checked.provider==='cloudflare-quick'&&
       (!options.binary||!existsSync(options.binary)))problems.push('CLOUDFLARED_BINARY_MISSING');
-  if(checked.provider==='cloudflare-named')problems.push('TUNNEL_PROVIDER_NOT_INSTALLED');
+  if(checked.provider==='cloudflare-named'){
+    if(!options.binary||!existsSync(options.binary))problems.push('CLOUDFLARED_BINARY_MISSING');
+    if(!options.token)problems.push('NAMED_TOKEN_MISSING');
+  }
   return {provider:checked.provider,ready:problems.length===0,
     problems,capabilities:capabilities[checked.provider]};
 }
@@ -40,8 +44,9 @@ export function createTunnelProvider(config,options={}){
       async stop(){running=false;verified=false;}
     };
   }
-  if(provider==='cloudflare-named')
-    throw Error('TUNNEL_PROVIDER_NOT_INSTALLED');
+  if(provider==='cloudflare-named')return createCloudflareNamedSupervisor({
+    ...options,issuer:checked.issuer,tunnelId:checked.tunnelId
+  });
   throw Error('UNKNOWN_TUNNEL_PROVIDER');
 }
 export function providerCapabilities(provider){

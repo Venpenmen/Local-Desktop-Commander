@@ -219,6 +219,9 @@ export class GeminiRunner {
        this.tunnelConfig.issuer!==this.connection?.issuer)
       throw Error('TUNNEL_CONNECTION_ISSUER_MISMATCH');
     if (tunnel && !oauth) throw Error('TUNNEL_REQUIRES_OAUTH');
+    if(tunnel&&this.tunnelConfig.provider==='cloudflare-named'&&
+       !existsSync(join(this.instance,'credentials','tunnel-cloudflare-named.dpapi')))
+      throw Error('NAMED_TOKEN_MISSING');
     this.starting = true;
     try {
       this.acquireOwner();
@@ -256,15 +259,20 @@ export class GeminiRunner {
       }else {
         this.gateway=oauth?await createOAuthGateway(this.bridge,this.instance,{
           issuer:new URL(this.connection.issuer),
+          port:this.tunnelConfig.provider==='cloudflare-named'?this.tunnelConfig.localPort:0,
           configRevision:configStatus(this.config,this.config).revision,
           timeout:this.timeout,onEvent:log
         }):await createGateway(this.bridge,{timeout:this.timeout,onEvent:log});
         if(tunnel){
-          const authtoken=this.tunnelConfig.provider==='ngrok'
+          const isNgrok=this.tunnelConfig.provider==='ngrok';
+          const isNamed=this.tunnelConfig.provider==='cloudflare-named';
+          const authtoken=isNgrok
             ?createSecretStore(this.instance,'tunnel-secret.dpapi').read().authtoken:undefined;
+          const token=isNamed
+            ?createSecretStore(this.instance,'tunnel-cloudflare-named.dpapi').read().token:undefined;
           const options={provider:this.tunnelConfig.provider,issuer:this.connection.issuer,
-            port:this.gateway.port,binary:this.ngrokBinary,authtoken,
-            runDir:join(this.instance,'tunnel'),onEvent:log};
+            port:this.gateway.port,binary:isNamed?this.cloudflaredBinary:this.ngrokBinary,
+            authtoken,token,runDir:join(this.instance,'tunnel'),onEvent:log};
           this.tunnel=this.tunnelFactory?.(options) ?? createTunnelManager(this.tunnelConfig,options);
           await this.tunnel.start();
         }
