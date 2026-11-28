@@ -2,7 +2,7 @@
 
 ## Unreleased — M7
 
-- Gemini C5-L5 官网 Restricted/Files（14工具）读写与越界拒绝、Restricted/Terminal（21工具）PowerShell 实际执行及服务端审计核验；权限变更后旧对话工具消失、重新关联并新建对话恢复。正式测试实例 Full/Files、Full/Terminal 本地运行及公网元数据检查通过，官网 Full 两模式尚未复验。最终回退 Restricted/Files；定向6/6、全量54/54 PASS。详情见 `transports/gemini/C5-L5-ACCEPTANCE.md`。
+- Gemini C5-L5 官网 Restricted/Files（14工具）读写与越界拒绝、Restricted/Terminal（21工具）PowerShell 实际执行及服务端审计核验；权限变更后旧对话工具消失、重新关联并新建对话恢复。正式测试实例 Full/Files、Full/Terminal 本地运行及公网元数据检查通过，官网 Full 两模式尚未复验。最终回退 Restricted/Files；定向6/6、全量54/54 PASS。曾暴露的本地 OAuth Client Secret 已轮换，保留 Client ID/回调，需用户在 Gemini 官网更新并重新关联。详情见 `transports/gemini/C5-L5-ACCEPTANCE.md`。
 
 - Gemini C5-N8 正式 Cloudflare Named Tunnel 经真实公网 OAuth PKCE、14 工具发现、隔离文件读取、撤销、连接器异常恢复与 OAuth 刷新持久化验收；修复 Windows signalCode 退出误判和回环反向代理限流警告。官方 Gemini 网页 L5 仍待用户实际授权验收。
 

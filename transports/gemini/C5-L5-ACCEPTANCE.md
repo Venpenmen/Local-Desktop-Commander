@@ -31,7 +31,7 @@
 
 ## 最终状态、安全与遗留
 
-本轮结束后测试实例保持 `Restricted / Files` 14 工具，Named 公网 ready/verified，控制台仍由原隔离进程管理；未安装自启服务，不建议认为 Windows 重启后自动恢复。OAuth Manual 客户端注册仍在，Access/Refresh grants 为0。先前曾在聊天中展示过 Client Secret，**已暴露的客户端密钥尚未轮换**；正式继续长期使用前应在本机轮换并由用户在 Gemini 官网更新配置、重新关联。当前无有效授权令牌。不得将凭据、私有 Windows 路径以外的秘密、测试日志或 DPAPI 文件加入仓库。
+本轮结束后测试实例保持 `Restricted / Files` 14 工具，Named 公网 ready/verified，控制台仍由原隔离进程管理；未安装自启服务，不建议认为 Windows 重启后自动恢复。OAuth Manual 客户端注册仍在，Access/Refresh grants 为0。先前曾在聊天中展示过 Client Secret；本轮 Git 交付后，在受管实例停机及无有效 Grant（0 Access/0 Refresh）的条件下，已本地轮换客户端 Secret，保留原 Client ID 与精确 Google 回调，并独立验证 DPAPI 持久化。旧 Secret 失效，**用户须在 Gemini 官网更新新密钥、重新关联并新建对话**；本站不会向聊天输出新密钥。提供仅位于 Git 忽略目录的本机查看脚本 `test-runtime/gemini-personal/Show-Gemini-Credentials.cmd`，Windows PowerShell 静态语法0错误，不含凭据字面量；其实际交互式显示/官网重关联尚待用户执行。当前无有效授权令牌。不得将凭据、私有 Windows 路径以外的秘密、测试日志或 DPAPI 文件加入仓库。
 
 **范围外待办（不宣称完成）：** 官网 Full / Files 与 Full / Terminal 真实工具调用、同一官网对话静默刷新及服务重启后恢复、Client Secret 安全轮换后的官网重新关联、跨全局代理模式/日新节点切换/真实断网/整机重启。前三项需 Gemini 官网用户交互，后四种网络/系统干预留维护窗口；独立本地与先前真实公网 SDK 已有对应回归，不阻塞 C5 本地交付，**C5 官网全矩阵仍为 PARTIAL**。
 

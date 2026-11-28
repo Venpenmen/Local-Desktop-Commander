@@ -39,6 +39,6 @@ Cloudflare Dashboard 由用户手动创建 Tunnel 和 Published Route；LDC 不�
 
 详细验收见 C5-N-ACCEPTANCE.md、C5-N8-ACCEPTANCE.md 与 C5-L5-ACCEPTANCE.md；工程发展路径 C5-N → C5-L5 → C6 公共管理 → C7 GUI。
 
-2026-11-28 C5-L5 追加：Gemini 官方网页已真实关联并验证 Restricted/Files 14 项工具及文件读写/越界拒绝，Restricted/Terminal 21 项工具发现及 PowerShell `start_process` 实际执行；服务端审计交叉核对成功。权限变化会撤销旧 OAuth Grants；旧对话工具集0，新对话重新关联后恢复21项，具体原因尚不明确。正式实例 Full/Files 及 Full/Terminal 切换后已核对工具数与公网状态，四模式真实 MCP 调用由独立本地6/6回归验证，官网 Full 两模式未实际调用。当前已恢复 Restricted/Files 14项、公网 verified；原 OAuth 客户端保留而 Access/Refresh Grants 为0，Gemini 官网后续需重新关联授权。完整54/54 PASS。曾在对话显示 Client Secret，必须在后续官网用户操作窗口完成安全轮换；不要认为本轮已完成轮换。
+2026-11-28 C5-L5 追加：Gemini 官方网页已真实关联并验证 Restricted/Files 14 项工具及文件读写/越界拒绝，Restricted/Terminal 21 项工具发现及 PowerShell `start_process` 实际执行；服务端审计交叉核对成功。权限变化会撤销旧 OAuth Grants；旧对话工具集0，新对话重新关联后恢复21项，具体原因尚不明确。正式实例 Full/Files 及 Full/Terminal 切换后已核对工具数与公网状态，四模式真实 MCP 调用由独立本地6/6回归验证，官网 Full 两模式未实际调用。当前已恢复 Restricted/Files 14项、公网 verified；原 OAuth 客户端保留而 Access/Refresh Grants 为0，Gemini 官网后续需重新关联授权。完整54/54 PASS。曾在对话显示 Client Secret，现已在停止受管实例且无有效 Grants 的前提下于本地安全轮换，保留 Client ID、Google 回调与独立 Named Tunnel Token；用户须用 Git 忽略目录 `test-runtime/gemini-personal/Show-Gemini-Credentials.cmd` 在 Windows 本机查看新密钥并在 Gemini 官网更新/重新关联、新建对话。该用户界面环节尚未验收，不输出新密钥至聊天。
 
 2026-11-28 C5-N8 增量：用户已创建独立 Named Tunnel / Published Route，DPAPI Token 加密导入；经真实公网 OAuth PKCE、MCP initialize、14 工具发现、隔离 read_file、撤销 401、受管重启、单独自有连接器故障恢复与 refresh grant 重启后继续有效。Windows 信号退出误判和 loopback X-Forwarded-For 告警已修复。当前有一个独立本地控制台会话管理实例，关闭控制台会停止服务，且不具备开机自动启动；用户在 Gemini 官网配好真实回调并完成浏览器 L5 之前不可宣称官网已验收。
