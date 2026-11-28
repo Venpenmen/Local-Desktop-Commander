@@ -25,7 +25,10 @@ async function command(req) {
     if (req.operation === 'capabilities') {
       return reply(req.id, true, {
         schema: 1,
-        operations: ['state', 'capabilities', 'start', 'stop', 'restart', 'config.get', 'config.set'],
+        operations: ['state', 'capabilities', 'start', 'stop', 'restart', 'config.get', 'config.set',
+          'connection.set', 'oauth.status', 'oauth.register', 'oauth.arm',
+          'oauth.credentials', 'oauth.revoke', 'tunnel.check',
+          'ngrok.token.set', 'ngrok.token.clear'],
         instance: runner.id, accessModes: modes, toolModes: toolSets,
         warning: 'Terminal mode has full Windows user permissions; Restricted limits file tools only'
       });
@@ -42,13 +45,48 @@ async function command(req) {
       target.elevatedAcknowledged = elevated;
       return reply(req.id, true, runner.setTarget(target).fileAccess);
     }
+    if (req.operation === 'connection.set') {
+      if (args.confirmed !== true) return reply(req.id, false, 'CONFIRMATION_REQUIRED');
+      if (args.resetAuth === true && args.riskAcknowledged !== true)
+        return reply(req.id, false, 'ELEVATED_CONFIRMATION_REQUIRED');
+      const result = runner.setEndpoint(args.issuer,{clearExistingAuthorization:args.resetAuth===true});
+      return reply(req.id,true,result.connection);
+    }
+    if (req.operation === 'ngrok.token.set') {
+      if (args.confirmed !== true) return reply(req.id,false,'CONFIRMATION_REQUIRED');
+      return reply(req.id,true,runner.setNgrokToken(args.authtoken));
+    }
+    if (req.operation === 'ngrok.token.clear') {
+      if (args.confirmed !== true) return reply(req.id,false,'CONFIRMATION_REQUIRED');
+      return reply(req.id,true,runner.clearNgrokToken());
+    }
+    if (req.operation === 'oauth.status') return reply(req.id,true,runner.status.connection);
+    if (req.operation === 'tunnel.check') {
+      if (!runner.tunnel) return reply(req.id,false,'TUNNEL_NOT_RUNNING');
+      const verified=await runner.tunnel.recheck();
+      return reply(req.id,true,{verified,...runner.tunnel.status()});
+    }
+    if (['oauth.register','oauth.arm','oauth.credentials','oauth.revoke'].includes(req.operation)) {
+      if (args.confirmed !== true) return reply(req.id,false,'CONFIRMATION_REQUIRED');
+      if (runner.status.connection.mode !== 'oauth')
+        return reply(req.id,false,'OAUTH_GATEWAY_NOT_RUNNING');
+      if (req.operation === 'oauth.register') {
+        const registered=runner.gateway.registerManual(args.callbackUrl);
+        return reply(req.id,true,{clientConfigured:true,updated:registered.updated});
+      }
+      if (req.operation === 'oauth.arm') return reply(req.id,true,runner.gateway.armApproval());
+      if (req.operation === 'oauth.revoke') return reply(req.id,true,runner.gateway.revokeAll());
+      if (args.showSecret !== true) return reply(req.id,false,'EXPLICIT_SECRET_DISPLAY_REQUIRED');
+      return reply(req.id,true,runner.gateway.credentials());
+    }
     if (['start', 'stop', 'restart'].includes(req.operation)) {
       if (args.confirmed !== true) return reply(req.id, false, 'CONFIRMATION_REQUIRED');
       if (req.operation !== 'stop' &&
           (runner.config.accessMode === 'full' || runner.config.terminal) &&
           args.riskAcknowledged !== true)
         return reply(req.id, false, 'ELEVATED_CONFIRMATION_REQUIRED');
-      const status = await runner[req.operation]();
+      const status = req.operation === 'start' ?
+        await runner.start({oauth:args.oauth===true,tunnel:args.tunnel===true}) : await runner[req.operation]();
       return reply(req.id, true, req.operation === 'stop' ?
         runner.status : { ...runner.status, hasEphemeralToken: Boolean(status.token) });
     }
