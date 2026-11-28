@@ -48,7 +48,24 @@ test('C3 dedicated CLI protocol, revision, confirmations and lifecycle', {timeou
     assert(stop.ok&&stop.result.state==='stopped');
     const after=await query('state');
     assert(after.ok&&after.result.enginePid===null);
-    console.log(JSON.stringify({checks:['CLI state/capabilities/config/revision/confirmation/unknown operation','engine start/restart/stop and process cleanup']}));
+    const upgrade={confirmed:true,revision:after.result.fileAccess.revision,
+      accessMode:'full',toolMode:'terminal',tools:'all'};
+    assert.equal((await query('config.set',upgrade)).error.code,'ELEVATED_CONFIRMATION_REQUIRED');
+    const raised=await query('config.set',{...upgrade,riskAcknowledged:true});
+    assert(raised.ok,JSON.stringify(raised));
+    assert.equal(raised.result.target.tools.length,21);
+    assert.equal((await query('start',{confirmed:true})).error.code,'ELEVATED_CONFIRMATION_REQUIRED');
+    const elevated=await query('start',{confirmed:true,riskAcknowledged:true});
+    assert(elevated.ok,JSON.stringify(elevated));
+    assert.equal(elevated.result.toolCount,21);
+    assert.equal(elevated.result.fileAccess.actual.accessMode,'full');
+    assert.equal((await query('stop',{confirmed:true})).ok,true);
+    const downgrade=await query('config.set',{confirmed:true,revision:raised.result.revision,
+      accessMode:'restricted',toolMode:'files',tools:'all'});
+    assert(downgrade.ok,JSON.stringify(downgrade));
+    assert.equal(downgrade.result.target.tools.length,14);
+    console.log(JSON.stringify({checks:['CLI state/capabilities/config/revision/confirmation/unknown operation',
+      'engine start/restart/stop and process cleanup','explicit Full/terminal acknowledgment and mode rollback']}));
   }finally{
     child.stdin.end();
     await new Promise(resolve=>{if(child.exitCode!==null)return resolve();child.once('exit',resolve);setTimeout(()=>{child.kill();resolve();},5000).unref();});

@@ -1,1 +1,13 @@
-{"name":"ldc-gemini-transport","version":"0.1.0","private":true,"type":"module","scripts":{"test":"node --test --test-concurrency=1 *.test.mjs"},"dependencies":{"zod":"4.1.13","@modelcontextprotocol/sdk":"1.32.1"}}
+{
+  "name": "ldc-gemini-transport",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 *.test.mjs"
+  },
+  "dependencies": {
+    "zod": "4.1.13",
+    "@modelcontextprotocol/sdk": "1.32.1"
+  }
+}

@@ -24,7 +24,7 @@ test('C3 configuration validation, root isolation and status',()=>{
   assert.equal(configStatus(config,config).restartRequired,false);
   assert.equal(configStatus({...config,tools:[]},config).restartRequired,true);
   for(const bad of [{accessMode:'full'},{toolMode:'terminal'},{allowPublic:true},{terminal:true},
-    {tools:['write_file']},{tools:['read_file','read_file']},{root:'C:\\Windows'}]){
+    {tools:['unrecognized_tool']},{tools:['read_file','read_file']},{root:'\\\\server\\share'}]){
     assert.throws(()=>validateConfig({...config,...bad},join(runtime,id)));
   }
 });

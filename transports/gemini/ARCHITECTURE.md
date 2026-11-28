@@ -35,3 +35,19 @@ Source and checks:
 - `adapter.test.mjs`, `cli.test.mjs`, `fault.test.mjs`, `isolation.test.mjs`, `timeout.test.mjs`: C3 local integration tests
 
 Known C4/C5/C6 follow-up: expand tool schemas and tool modes; trusted OAuth endpoint and stable address with protected client storage; introduce a shared manager adapter registration and status/diagnostic hooks in a common-maintenance branch. Neither `management/LDC-Core.ps1` nor the GUI worktree should be modified for this branch-local C3 checkpoint.
+
+
+## C4 实施结果（继承上述 C3 边界）
+
+C3 阶段描述的「仅 read_file / 禁止 Full 与 terminal」是当时的基线。C4 现已通过原生工具发现和低层 MCP Server 对接 **14/21 项完整 Schema**，并支持四种文件权限/工具模式组合；所有高级模式仍局限于独立的回环测试实例。
+
+- 原生 stdio 引擎安装在 `instance/install/engine`，授权工作区为相邻的 `instance/workspace`，防止原生安装文件保护阻断普通文件写入。
+- `config.mjs` 验证本机合法授权根及工具白名单。Full 和 terminal 要求 `elevatedAcknowledged`，本地 CLI 还要求针对增权模式的 `riskAcknowledged`。
+- `bridge.mjs` 根据原生启动模式发现完整工具清单，并拒绝未知工具；原生 `inputSchema` 和返回结构不经手写裁剪地转发。
+- `gateway.mjs` 仅绑定 `127.0.0.1`，以临时随机 Bearer、请求大小与并发限制保护本地 MCP 连接。
+- `runner.mjs` 负责独立实例、锁、PID、动态状态、配置回读、起停及令牌轮换；`audit.mjs` 实现有限保留的脱敏事件记录。
+- 真正的 HTTP↔MCP↔原生 Windows 文件/终端调用已执行，并通过四模式矩阵、21项工具调用及异常/超时/双实例验收。
+- **Restricted 只限制文件工具**；完整终端在 Windows 当前用户权限下运行，无法视为操作系统沙箱。
+- 上游 profile 禁止 Markdown 新建 PDF，保留 PDF 页面编辑能力；不在 C4 修改或绕过既有引擎保护。
+
+C4 不是正式公网发布版。C5 负责 OAuth 和公网 HTTPS；C6 负责公共管理协议及共享注册；C7 负责 GUI 集成。交接见 `C4-ACCEPTANCE.md` 和 `COMMON-INTEGRATION.md`。
