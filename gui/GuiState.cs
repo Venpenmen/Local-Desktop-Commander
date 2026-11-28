@@ -70,6 +70,43 @@ public sealed class GuiState : INotifyPropertyChanged
         "running" => "运行中", "starting" => "启动中",
         "stopped" => "已停止", "unsafe" => "状态异常", _ => "未知"
     };
+    public string ServiceSummary =>
+        Get("actual","state") == "running"
+            ? $"版本 {Get("actual","version") ?? "—"} · 已运行 {Uptime}"
+            : Get("actual","state") == "starting" ? "正在等待服务就绪"
+            : Get("actual","state") == "stopped" ? "等待启动"
+            : Get("actual","state") == "unsafe" ? "实例状态异常，需要人工检查" : "状态尚未确认";
+    public string ToolCountHeadline => ProbeFresh
+        ? $"{ActualToolCount}/{ExpectedToolCount}"
+        : $"—/{ExpectedToolCount}";
+    public string ToolStatusShort => InspectionStatus switch
+    {
+        "ok" => $"{(Get("actual","mode") == "terminal" ? "完整终端模式" : "文件模式")} · 清单一致",
+        "mismatch" => "检测到工具差异，请查看工具管理",
+        "failed" => "检测失败，请重新检测",
+        "stale" => "结果过期，等待重新检测",
+        _ => Get("actual","state") == "running" ? "正在等待实际工具发现" : "服务未运行，工具未检测"
+    };
+    public string PermissionHeadline => (Get("fileAccess","actual","mode") ??
+        Get("fileAccess","target","mode")) switch
+    {
+        "restricted" => "Restricted",
+        "full" => "Full",
+        _ => "未知"
+    };
+    public bool HasSafetyNotice => Get("actual","state") == "unsafe" ||
+        Get("fileAccess","restartRequired") == "True";
+    public string SafetyNotice => Get("actual","state") == "unsafe"
+        ? "实例进程归属异常：停止自动处理，请核验实际服务。"
+        : Get("fileAccess","restartRequired") == "True"
+        ? "目标文件权限尚未生效，必须重启后核验实际配置。"
+        : "";
+    public string PermissionSubtitle => Get("fileAccess","actual","mode") is null
+        ? "目标配置 · 尚未生效" : "当前生效的文件访问权限";
+    public string ConnectionSummary =>
+        $"本地引擎：{(Get("actual","state") == "running" && Get("readiness","local") == "True" ? "正常" : "未就绪")}  ·  " +
+        $"MCP：{(InspectionStatus == "ok" ? "正常" : InspectionStatus == "mismatch" ? "工具不一致" : InspectionStatus == "failed" ? "检测失败" : "未验证")}\n" +
+        $"远程客户端：{(Get("readiness","remoteInvocation") is "unverified" or null ? "未验证" : Get("readiness","remoteInvocation"))}";
     public string ActualDetails =>
         $"版本：{Get("actual","version") ?? "—"}  工具模式：{Get("actual","mode") ?? "—"}\n" +
         $"进程 PID：{Get("actual","pid") ?? "—"}  启动：{StartedAt}  已运行：{Uptime}\n" +

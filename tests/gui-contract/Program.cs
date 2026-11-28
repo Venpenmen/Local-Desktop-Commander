@@ -58,6 +58,22 @@ using(var notReadyDoc = JsonDocument.Parse(notReady.ToJsonString()))
 vm.Apply(state);
 Require(vm.ToolDescription.Contains("未检测"),"pre-discovery actual count is explicitly unknown");
 
+var startingState = System.Text.Json.Nodes.JsonNode.Parse(state.GetRawText())!;
+startingState["actual"]!["state"] = "starting";
+using(var startingDoc = JsonDocument.Parse(startingState.ToJsonString()))
+{
+    vm.Apply(startingDoc.RootElement);
+    Require(vm.ActualState=="启动中" && vm.ServiceSummary.Contains("等待服务就绪"),
+        "starting engine clearly differs from ready service");
+}
+var stoppedState = System.Text.Json.Nodes.JsonNode.Parse(state.GetRawText())!;
+stoppedState["actual"]!["state"] = "stopped";
+using(var stoppedDoc = JsonDocument.Parse(stoppedState.ToJsonString()))
+{
+    vm.Apply(stoppedDoc.RootElement);
+    Require(vm.ActualState=="已停止" && vm.ToolCountHeadline.StartsWith("—/"),
+        "stopped engine never displays fake zero tools");
+}
 var unsafeState = System.Text.Json.Nodes.JsonNode.Parse(state.GetRawText())!;
 unsafeState["actual"]!["state"] = "unsafe";
 using(var unsafeDocument = JsonDocument.Parse(unsafeState.ToJsonString()))
@@ -65,6 +81,16 @@ using(var unsafeDocument = JsonDocument.Parse(unsafeState.ToJsonString()))
     vm.Apply(unsafeDocument.RootElement);
     Require(vm.ActualState=="状态异常" && vm.DiagnosticsAdvice.Contains("进程归属异常"),
         "unsafe PID disables recovery assumptions");
+    Require(vm.HasSafetyNotice && vm.SafetyNotice.Contains("进程归属异常"),
+        "unsafe ownership warning remains visible in streamlined overview");
+}
+var pendingState = System.Text.Json.Nodes.JsonNode.Parse(state.GetRawText())!;
+pendingState["fileAccess"]!["restartRequired"] = true;
+using(var pendingDocument = JsonDocument.Parse(pendingState.ToJsonString()))
+{
+    vm.Apply(pendingDocument.RootElement);
+    Require(vm.HasSafetyNotice && vm.SafetyNotice.Contains("尚未生效"),
+        "pending permission restart warning remains visible");
 }
 var hostedState = System.Text.Json.Nodes.JsonNode.Parse(state.GetRawText())!;
 hostedState["instance"]!["transport"] = "openai";

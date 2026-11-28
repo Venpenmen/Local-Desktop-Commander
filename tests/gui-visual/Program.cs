@@ -23,7 +23,9 @@ internal static class Program
     {
         var panel = element as Panel;
         var originalBackground = panel?.Background;
-        if (panel is not null) panel.Background = new SolidColorBrush(Color.FromRgb(244, 246, 248));
+        if (panel is not null) panel.Background =
+            Application.Current.Resources["PageBackground"] as Brush ??
+            new SolidColorBrush(Color.FromRgb(244, 246, 248));
         element.LayoutTransform = new ScaleTransform(scale, scale);
         element.UpdateLayout();
         var size = new Size(element.ActualWidth * scale, element.ActualHeight * scale);
@@ -47,6 +49,7 @@ internal static class Program
         app.Dispatcher.BeginInvoke(new Action(async () =>
         {
             MainWindow? window=null;
+            ThemeChoice? savedTheme = null;
             try
             {
                 window = new MainWindow
@@ -54,6 +57,7 @@ internal static class Program
                     Left = -32000, Top = -32000, ShowInTaskbar=false, ShowActivated=false,
                     WindowStartupLocation=WindowStartupLocation.Manual
                 };
+                savedTheme = ThemeManager.Choice;
                 window.Show();
                 await Task.Delay(400);
                 var vm=(GuiState)typeof(MainWindow).GetField("vm",
@@ -86,6 +90,14 @@ internal static class Program
                 var layout=(DockPanel)window.Content;
                 var tabs=layout.Children.OfType<TabControl>().Single();
                 Check(tabs.Items.Count==4,"overview, connection, tools and settings navigation");
+                var themeSelector=(ComboBox)window.FindName("ThemeSelector")!;
+                Check(themeSelector.Items.Count==3 && themeSelector.IsEnabled,
+                    "light dark system theme choices are accessible");
+                themeSelector.SelectedValue="Light";
+                Check(!ThemeManager.IsDark && ThemeManager.Choice==ThemeChoice.Light,
+                    "light theme switch applies immediately");
+                for(var i=0;i<90 && !vm.ProbeFresh;i++) await Task.Delay(400);
+                Check(vm.ProbeFresh,"visual capture waits for actual live MCP discovery");
                 tabs.SelectedIndex=0;
                 await Task.Delay(150);
                 Screenshot(layout,"gui-overview-100.png");
@@ -98,6 +110,92 @@ internal static class Program
                 tabs.SelectedIndex=3;
                 await Task.Delay(180);
                 Screenshot(layout,"gui-settings-100.png");
+                var settingsToggle=(System.Windows.Controls.Primitives.ToggleButton)
+                    window.FindName("SettingsDetailsToggle")!;
+                var settingsPanel=(FrameworkElement)window.FindName("SettingsDetailsPanel")!;
+                Check(settingsPanel.Visibility==Visibility.Collapsed,
+                    "advanced settings are hidden by default");
+                settingsToggle.IsChecked=true;
+                Check(settingsPanel.Visibility==Visibility.Visible,
+                    "settings details can be expanded");
+                settingsToggle.IsChecked=false;
+                tabs.SelectedIndex=0;
+                var overviewToggle=(System.Windows.Controls.Primitives.ToggleButton)
+                    window.FindName("OverviewDetailsToggle")!;
+                var overviewPanel=(FrameworkElement)window.FindName("OverviewDetailsPanel")!;
+                Check(overviewPanel.Visibility==Visibility.Collapsed,
+                    "overview technical details are initially hidden");
+                overviewToggle.IsChecked=true;
+                await Task.Delay(175);
+                Check(overviewPanel.Visibility==Visibility.Visible,
+                    "overview technical details expand with light animation");
+                overviewToggle.IsChecked=false;
+                Check(overviewPanel.Visibility==Visibility.Collapsed,
+                    "overview details collapse without losing status");
+                themeSelector.SelectedValue="Dark";
+                await Task.Delay(100);
+                Check(ThemeManager.IsDark && ThemeManager.Choice==ThemeChoice.Dark &&
+                      ((SolidColorBrush)Application.Current.Resources["PageBackground"]).Color.R<60,
+                    "dark theme has dark canvas and persisted choice");
+                Screenshot(layout,"gui-b31-overview-dark.png");
+                tabs.SelectedIndex=1;
+                await Task.Delay(200);
+                Screenshot(layout,"gui-b31-connection-dark.png");
+                var connectionToggle=(System.Windows.Controls.Primitives.ToggleButton)
+                    window.FindName("ConnectionDetailsToggle")!;
+                var connectionPanel=(FrameworkElement)window.FindName("ConnectionDetailsPanel")!;
+                Check(connectionPanel.Visibility==Visibility.Collapsed,
+                    "advanced transport diagnostics hidden by default");
+                connectionToggle.IsChecked=true;
+                Check(connectionPanel.Visibility==Visibility.Visible,
+                    "advanced connection diagnostics accessible");
+                connectionToggle.IsChecked=false;
+                tabs.SelectedIndex=2;
+                await Task.Delay(130);
+                Screenshot(layout,"gui-b31-tools-dark.png");
+                tabs.SelectedIndex=3;
+                await Task.Delay(130);
+                Screenshot(layout,"gui-b31-settings-dark.png");
+                themeSelector.SelectedValue="Light";
+                Check(!ThemeManager.IsDark &&
+                      ((SolidColorBrush)Application.Current.Resources["PageBackground"]).Color.R>200,
+                    "theme changes refresh the resource palette");
+                ThemeManager.Initialize();
+                Check(ThemeManager.Choice==ThemeChoice.Light,
+                    "GUI theme preference survives reinitialization");
+                themeSelector.SelectedValue="System";
+                Check(ThemeManager.Choice==ThemeChoice.System,
+                    "follow Windows theme mode selectable");
+                var prefFile=ThemeManager.SettingsFile;
+                var prefBackup=File.Exists(prefFile)?File.ReadAllBytes(prefFile):null;
+                try
+                {
+                    File.WriteAllText(prefFile,"{malformed preferences");
+                    ThemeManager.Initialize();
+                    Check(ThemeManager.Choice==ThemeChoice.System,
+                        "corrupt theme preferences fall back to system");
+                    File.Delete(prefFile);
+                    ThemeManager.Initialize();
+                    Check(ThemeManager.Choice==ThemeChoice.System,
+                        "missing theme preferences fall back to system");
+                }
+                finally
+                {
+                    if(prefBackup is null) { if(File.Exists(prefFile)) File.Delete(prefFile); }
+                    else File.WriteAllBytes(prefFile,prefBackup);
+                    ThemeManager.Initialize();
+                }
+                Check(themeSelector.Focusable && themeSelector.IsTabStop &&
+                      ((ComboBox)window.FindName("ToolMode")!).Focusable &&
+                      ((ComboBox)window.FindName("AccessMode")!).Focusable &&
+                      ((TextBox)window.FindName("RootPath")!).Focusable,
+                    "theme, mode, access and root controls are keyboard focusable");
+                themeSelector.SelectedValue="Light";
+                tabs.SelectedIndex=0;
+                await Task.Delay(160);
+                Screenshot(layout,"gui-b31-overview-125.png",1.25);
+                layout.LayoutTransform=Transform.Identity;
+                tabs.SelectedIndex=3;
                 for(var i=0;i<90 && !vm.ProbeFresh;i++)await Task.Delay(400);
                 Check(vm.ProbeFresh && vm.ActualToolCount==vm.ExpectedToolCount,
                     "actual MCP count shown from live discovery");
@@ -140,6 +238,7 @@ internal static class Program
             catch(Exception e) { failed=1;Console.Error.WriteLine(e); }
             finally
             {
+                if (savedTheme.HasValue) ThemeManager.SetChoice(savedTheme.Value);
                 window?.Close();
                 File.WriteAllText(Path.Combine(Root,"test-runtime","gui-visual.json"),
                   JsonSerializer.Serialize(new{utc=DateTimeOffset.UtcNow,status=failed==0?"PASS":"FAIL",

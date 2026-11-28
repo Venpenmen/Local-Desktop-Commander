@@ -3,117 +3,427 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Local Desktop Commander" Width="960" Height="700"
         MinWidth="720" MinHeight="520"
-        FontFamily="Microsoft YaHei UI" FontSize="14" Background="#F4F6F8">
+        FontFamily="Microsoft YaHei UI" FontSize="14"
+        Background="{DynamicResource PageBackground}" Foreground="{DynamicResource TextPrimary}">
     <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolVisibility"/>
+        <Style x:Key="ServiceStateText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="26"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding ActualState}" Value="运行中">
+                    <Setter Property="Foreground" Value="{DynamicResource Success}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ActualState}" Value="状态异常">
+                    <Setter Property="Foreground" Value="{DynamicResource Danger}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ActualState}" Value="启动中">
+                    <Setter Property="Foreground" Value="{DynamicResource Warning}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+<Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource Surface}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+        </Style>
+        <Style x:Key="SectionTitle" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style x:Key="Hint" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="PageTitle" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style x:Key="NavTab" TargetType="TabItem">
+            <Setter Property="Width" Value="152"/>
+            <Setter Property="MinHeight" Value="42"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="Margin" Value="0,0,0,5"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="NavSurface" Background="Transparent" CornerRadius="7"
+                                Margin="0,0,0,4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter ContentSource="Header" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="NavSurface" Property="Background" Value="{DynamicResource NavSelected}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="NavSurface" Property="Opacity" Value=".78"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="NavSurface" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                                <Setter TargetName="NavSurface" Property="BorderThickness" Value="1"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value=".5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style TargetType="Button">
-            <Setter Property="Padding" Value="14,8"/>
-            <Setter Property="Margin" Value="0,0,8,7"/>
-            <Setter Property="MinHeight" Value="33"/>
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="MinHeight" Value="36"/>
+            <Setter Property="MinWidth" Value="68"/>
+            <Setter Property="Background" Value="{DynamicResource Surface}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Opacity" Value=".83"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Opacity" Value=".69"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                                <Setter TargetName="Chrome" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Chrome" Property="Opacity" Value=".4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{DynamicResource AccentFill}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentText}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
         <Style TargetType="TextBlock">
             <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         </Style>
-        <Style TargetType="TabItem">
-            <Setter Property="Width" Value="132"/>
-            <Setter Property="MinHeight" Value="45"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="Padding" Value="18,10"/>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource Surface}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="Padding" Value="9,7"/>
+            <Setter Property="MinHeight" Value="36"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="{DynamicResource SurfaceAlt}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="MinHeight" Value="36"/>
+            <Setter Property="Padding" Value="9,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid SnapsToDevicePixels="True">
+                            <Border x:Name="ComboSurface" Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                                    CornerRadius="6">
+                                <Grid>
+                                    <ContentPresenter Content="{TemplateBinding SelectionBoxItem}"
+                                                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                      TextElement.Foreground="{TemplateBinding Foreground}"
+                                                      Margin="10,2,30,2" VerticalAlignment="Center"
+                                                      IsHitTestVisible="False"/>
+                                    <Path Data="M 0,0 L 4,4 L 8,0" Stroke="{DynamicResource TextSecondary}"
+                                          StrokeThickness="1.7" HorizontalAlignment="Right"
+                                          VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                </Grid>
+                            </Border>
+                            <ToggleButton Focusable="False" ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="Transparent"/>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <Popup x:Name="PART_Popup" AllowsTransparency="True" Focusable="False"
+                                   Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   PopupAnimation="Fade">
+                                <Border Background="{DynamicResource Surface}"
+                                        BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                        CornerRadius="6" MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+                                    <ScrollViewer CanContentScroll="True" MaxHeight="250">
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ComboSurface" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="ComboSurface" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                                <Setter TargetName="ComboSurface" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ComboSurface" Property="Opacity" Value=".55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Background" Value="{DynamicResource Surface}"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="ItemSurface" Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ItemSurface" Property="Background" Value="{DynamicResource NavSelected}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemSurface" Property="Background" Value="{DynamicResource NavSelected}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value=".48"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TabItem" BasedOn="{StaticResource NavTab}"/>
+        <Style x:Key="DetailToggle" TargetType="ToggleButton">
+            <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0,8,0,3"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="Cursor" Value="Hand"/>
         </Style>
     </Window.Resources>
-    <DockPanel Margin="18">
-        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,15">
-            <TextBlock Text="Local Desktop Commander" FontSize="23" FontWeight="SemiBold"/>
-            <TextBlock Text="{Binding InstanceLabel}" Foreground="#526579" Margin="0,4,0,0"/>
-        </StackPanel>
-        <Border DockPanel.Dock="Bottom" Background="White" Padding="12" Margin="0,12,0,0"
-                BorderBrush="#D6DFE9" BorderThickness="1" CornerRadius="5">
-            <TextBlock Text="{Binding Message}"/>
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Background="{DynamicResource Surface}"
+                BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1"
+                Padding="20,12">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="外观" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12"/>
+                    <ComboBox x:Name="ThemeSelector" Width="112" SelectionChanged="ThemeSelector_Changed"
+                              AutomationProperties.Name="外观主题">
+                        <ComboBoxItem Tag="System" Content="跟随系统"/>
+                        <ComboBoxItem Tag="Light" Content="浅色"/>
+                        <ComboBoxItem Tag="Dark" Content="深色"/>
+                    </ComboBox>
+                </StackPanel>
+                <StackPanel>
+                    <TextBlock Text="Local Desktop Commander" FontSize="20" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding InstanceLabel}" FontSize="12"
+                               Foreground="{DynamicResource TextSecondary}" Margin="0,3,0,0"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+        <Border DockPanel.Dock="Bottom" Background="{DynamicResource Surface}"
+                BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0"
+                Padding="15,9">
+            <TextBlock Text="{Binding Message}" Foreground="{DynamicResource TextSecondary}"
+                       FontSize="12" MaxHeight="43" ToolTip="{Binding Message}"/>
         </Border>
         <TabControl x:Name="Pages" TabStripPlacement="Left" Background="Transparent"
                     HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
-                    BorderThickness="0">
-            <TabItem Header="服务概览">
+                    BorderThickness="0" Padding="0">
+            <TabControl.Resources>
+                <Style TargetType="TabPanel">
+                    <Setter Property="Background" Value="{DynamicResource Sidebar}"/>
+                </Style>
+            </TabControl.Resources>
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="▦" FontSize="17" Width="28"/>
+                        <TextBlock Text="服务概览" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                    </StackPanel>
+                </TabItem.Header>
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="18">
-                        <TextBlock Text="服务状态" FontSize="19" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding ActualState}" FontSize="28" Margin="0,10,0,5"/>
-                        <TextBlock Text="{Binding ActualDetails}" Margin="0,0,0,12"/>
-                        <WrapPanel IsEnabled="{Binding CanOperate}">
-                            <Button Content="启动" Click="Start_Click" IsEnabled="{Binding CanStart}"/>
-                            <Button Content="停止" Click="Stop_Click" IsEnabled="{Binding CanStop}"/>
-                            <Button Content="重启" Click="Restart_Click" IsEnabled="{Binding CanStop}"/>
-                        </WrapPanel>
-                        <Button Content="刷新状态" Click="Refresh_Click" HorizontalAlignment="Left"/>
-                        <Separator Margin="0,14,0,14"/>
-                        <TextBlock Text="工具发现" FontSize="18" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding ToolDescription}" FontSize="17" Margin="0,8,0,4"/>
-                        <TextBlock Text="{Binding ToolSummary}" Foreground="#526579"/>
-                        <Separator Margin="0,14,0,14"/>
-                        <TextBlock Text="连接层级" FontSize="18" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding LayerDetails}" Margin="0,9,0,0"/>
-                        <Separator Margin="0,14,0,14"/>
-                        <TextBlock Text="目标与回滚配置" FontSize="18" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding TargetDetails}" Margin="0,9,0,0"/>
-                        <TextBlock Text="{Binding RestartNotice}" Foreground="#915400"/>
-                        <Separator Margin="0,14,0,14"/>
-                        <TextBlock Text="{Binding ConnectionDetails}"/>
-                        <TextBlock Text="{Binding TaskDetails}" Margin="0,4,0,0"/>
-                        <TextBlock Text="{Binding ObservedTime, StringFormat=状态采样：{0}}"
-                                   Foreground="#526579" Margin="0,6,0,0"/>
+                    <StackPanel Margin="20,18,20,8">
+                        <DockPanel Margin="0,0,0,14">
+                            <Button DockPanel.Dock="Right" Content="刷新状态" Click="Refresh_Click"
+                                    MinWidth="90" Margin="8,0,0,0"/>
+                            <TextBlock Text="服务概览" Style="{StaticResource PageTitle}" VerticalAlignment="Center"/>
+                        </DockPanel>
+                        <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Warning}"
+                                BorderThickness="1" CornerRadius="7" Padding="10,8" Margin="0,0,0,12"
+                                Visibility="{Binding HasSafetyNotice, Converter={StaticResource BoolVisibility}}">
+                            <DockPanel>
+                                <TextBlock Text="⚠" Foreground="{DynamicResource Warning}" Margin="0,0,8,0" FontSize="16"/>
+                                <TextBlock Text="{Binding SafetyNotice}" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource Warning}" FontSize="13"/>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="服务状态" Style="{StaticResource Hint}"/>
+                                <TextBlock Text="{Binding ActualState}" Style="{StaticResource ServiceStateText}" Margin="0,4,0,2"/>
+                                <TextBlock Text="{Binding ServiceSummary}" Foreground="{DynamicResource TextSecondary}"
+                                           FontSize="13" Margin="0,0,0,12"/>
+                                <WrapPanel IsEnabled="{Binding CanOperate}">
+                                    <Button Content="启动" Click="Start_Click" IsEnabled="{Binding CanStart}"
+                                            Style="{StaticResource PrimaryButton}"/>
+                                    <Button Content="停止" Click="Stop_Click" IsEnabled="{Binding CanStop}"/>
+                                    <Button Content="重启" Click="Restart_Click" IsEnabled="{Binding CanStop}"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+                        <UniformGrid Columns="2">
+                            <Border Style="{StaticResource Card}" Margin="0,0,6,12">
+                                <StackPanel>
+                                    <TextBlock Text="可用工具 · 实际 / 预期" Style="{StaticResource Hint}"/>
+                                    <TextBlock Text="{Binding ToolCountHeadline}" FontSize="25" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource Accent}" Margin="0,5,0,0"/>
+                                    <TextBlock Text="{Binding ToolStatusShort}" FontSize="12"
+                                               Foreground="{DynamicResource TextSecondary}"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Margin="6,0,0,12">
+                                <StackPanel>
+                                    <TextBlock Text="文件访问权限" Style="{StaticResource Hint}"/>
+                                    <TextBlock Text="{Binding PermissionHeadline}" FontSize="19" FontWeight="SemiBold" Margin="0,10,0,2"/>
+                                    <TextBlock Text="{Binding PermissionSubtitle}" FontSize="12"
+                                               Foreground="{DynamicResource TextSecondary}"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="连接摘要" Style="{StaticResource SectionTitle}" Margin="0,0,0,9"/>
+                                <TextBlock Text="{Binding ConnectionSummary}" FontSize="13"/>
+                                <TextBlock Text="{Binding RestartNotice}" Foreground="{DynamicResource Warning}"
+                                           FontWeight="SemiBold" Margin="0,8,0,0"/>
+                                <ToggleButton x:Name="OverviewDetailsToggle" Style="{StaticResource DetailToggle}"
+                                              Content="详细运行信息 ▼" Checked="OverviewDetails_Changed"
+                                              Unchecked="OverviewDetails_Changed"/>
+                                <StackPanel x:Name="OverviewDetailsPanel" Visibility="Collapsed" Margin="0,6,0,0">
+                                    <TextBlock Text="{Binding ActualDetails}" FontSize="12"
+                                               Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,9"/>
+                                    <TextBlock Text="{Binding TargetDetails}" FontSize="12"
+                                               Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,9"/>
+                                    <TextBlock Text="{Binding TaskDetails}" Style="{StaticResource Hint}"/>
+                                    <TextBlock Text="{Binding ObservedTime, StringFormat=状态采样：{0}}" Style="{StaticResource Hint}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
-            <TabItem Header="连接管理">
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⌁" FontSize="18" Width="28"/>
+                        <TextBlock Text="连接管理" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </TabItem.Header>
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="18">
-                        <TextBlock Text="连接与分层诊断" FontSize="19" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding InstanceLabel}" Foreground="#526579" Margin="0,8,0,12"/>
-                        <TextBlock Text="{Binding LayerDetails}" FontSize="16"/>
-                        <TextBlock Text="{Binding DiagnosticsAdvice}" Margin="0,9,0,9" Foreground="#526579"/>
-                        <WrapPanel>
-                            <Button Content="一键诊断（只读）" Click="Diagnose_Click" IsEnabled="{Binding CanOperate}"/>
-                            <Button Content="受控重启当前实例" Click="Restart_Click" IsEnabled="{Binding CanStop}"/>
-                        </WrapPanel>
-                        <Separator Margin="0,13,0,13"/>
-                        <TextBlock Text="运行健康状态" FontSize="18" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding HealthDetails}" Margin="0,8,0,10"/>
-                        <TextBlock Text="传输接口" FontSize="18" FontWeight="SemiBold" Margin="0,8,0,0"/>
-                        <TextBlock Text="{Binding TransportDetails}" Margin="0,8,0,10"/>
-                        <TextBlock Text="本地 MCP 接入地址" FontSize="17" FontWeight="SemiBold"/>
-                        <TextBox Text="{Binding Endpoint, Mode=OneWay}" IsReadOnly="True" Margin="0,7,0,7"
-                                 TextWrapping="Wrap" Padding="8"/>
-                        <Button Content="复制本地地址" Click="CopyEndpoint_Click"
-                                IsEnabled="{Binding HasEndpoint}" HorizontalAlignment="Left"/>
-                        <TextBlock Text="本地检测不等于 ChatGPT 或 Gemini 远程调用已验证。"
-                                   Foreground="#526579" Margin="0,5,0,8"/>
-                        <Separator Margin="0,10,0,10"/>
-                        <TextBlock Text="日志位置（只读）" FontSize="17" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding LogDetails}" Margin="0,8,0,0"/>
+                    <StackPanel Margin="20,18,20,8">
+                        <TextBlock Text="连接管理" Style="{StaticResource PageTitle}" Margin="0,0,0,14"/>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="连接状态 · 四层诊断" Style="{StaticResource SectionTitle}" Margin="0,0,0,9"/>
+                                <TextBlock Text="{Binding LayerDetails}" FontSize="14" LineHeight="26"/>
+                                <TextBlock Text="{Binding DiagnosticsAdvice}" Foreground="{DynamicResource TextSecondary}"
+                                           FontSize="12" Margin="0,10,0,12"/>
+                                <WrapPanel>
+                                    <Button Content="一键诊断（只读）" Click="Diagnose_Click"
+                                            IsEnabled="{Binding CanOperate}" Style="{StaticResource PrimaryButton}"/>
+                                    <Button Content="受控重启当前实例" Click="Restart_Click" IsEnabled="{Binding CanStop}"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="本地 MCP 接入地址" Style="{StaticResource SectionTitle}"/>
+                                <DockPanel Margin="0,10,0,0">
+                                    <Button DockPanel.Dock="Right" Content="复制地址" Click="CopyEndpoint_Click"
+                                            IsEnabled="{Binding HasEndpoint}" Margin="8,0,0,0"/>
+                                    <TextBox Text="{Binding Endpoint, Mode=OneWay}" IsReadOnly="True"
+                                             TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                </DockPanel>
+                                <TextBlock Text="本地检测与远程客户端调用属于不同的验证层级。"
+                                           Style="{StaticResource Hint}" Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <ToggleButton x:Name="ConnectionDetailsToggle" Style="{StaticResource DetailToggle}"
+                                              Content="高级诊断 / 传输详情 ▼" Checked="ConnectionDetails_Changed"
+                                              Unchecked="ConnectionDetails_Changed"/>
+                                <StackPanel x:Name="ConnectionDetailsPanel" Visibility="Collapsed">
+                                    <TextBlock Text="运行健康状态" Style="{StaticResource SectionTitle}" Margin="0,12,0,8"/>
+                                    <TextBlock Text="{Binding HealthDetails}" FontSize="13" LineHeight="24"/>
+                                    <TextBlock Text="传输能力" Style="{StaticResource SectionTitle}" Margin="0,12,0,8"/>
+                                    <TextBlock Text="{Binding TransportDetails}" FontSize="13"/>
+                                    <TextBlock Text="日志位置" Style="{StaticResource SectionTitle}" Margin="0,12,0,8"/>
+                                    <TextBlock Text="{Binding LogDetails}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
-            <TabItem Header="工具管理">
-                <Grid Margin="18">
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⚒" FontSize="17" Width="28"/>
+                        <TextBlock Text="工具管理" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </TabItem.Header>
+                <Grid Margin="20,18,20,12">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <StackPanel Grid.Row="0">
-                        <TextBlock Text="MCP 工具实际发现" FontSize="19" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding ToolDescription}" FontSize="18" Margin="0,9,0,4"/>
-                        <TextBlock Text="{Binding ToolSummary}" TextWrapping="Wrap"/>
-                        <TextBlock Text="{Binding ToolCheckedAt, StringFormat=检测时间：{0}}"
-                                   Foreground="#526579" Margin="0,5,0,0"/>
-                    </StackPanel>
-                    <Button Grid.Row="1" Content="重新检测工具" Click="DetectTools_Click"
-                            IsEnabled="{Binding CanOperate}" HorizontalAlignment="Left" Margin="0,12,0,12"/>
-                    <WrapPanel Grid.Row="2" Margin="0,0,0,10">
-                        <TextBox x:Name="ToolSearch" Width="260" MinHeight="32" Padding="7"
-                                 TextChanged="ToolSearch_Changed" ToolTip="按工具名称查找"/>
-                        <ComboBox x:Name="ToolCategory" Width="155" Margin="10,0,0,0"
+                    <Border Grid.Row="0" Style="{StaticResource Card}">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="重新检测" Click="DetectTools_Click"
+                                    IsEnabled="{Binding CanOperate}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                            <StackPanel>
+                                <TextBlock Text="工具管理" Style="{StaticResource PageTitle}"/>
+                                <TextBlock Text="{Binding ToolDescription}" FontSize="19" FontWeight="SemiBold" Margin="0,6,0,2"/>
+                                <TextBlock Text="{Binding ToolStatusShort}" Style="{StaticResource Hint}"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                    <WrapPanel Grid.Row="1" Margin="0,0,0,12">
+                        <TextBox x:Name="ToolSearch" Width="245" ToolTip="按工具名称查找"
+                                 TextChanged="ToolSearch_Changed" AutomationProperties.Name="搜索工具"/>
+                        <ComboBox x:Name="ToolCategory" Width="150" Margin="10,0,0,0"
                                   SelectionChanged="ToolCategory_Changed">
                             <ComboBoxItem Content="全部" IsSelected="True"/>
                             <ComboBoxItem Content="文件工具"/>
@@ -121,62 +431,95 @@
                             <ComboBoxItem Content="异常"/>
                         </ComboBox>
                     </WrapPanel>
-                    <ListBox Grid.Row="3" ItemsSource="{Binding Tools}" BorderBrush="#D6DFE9">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Margin="6,5">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="105"/>
-                                        <ColumnDefinition Width="55"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{Binding Name}" ToolTip="{Binding Name}"
-                                               TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Margin="0,0,8,0"
-                                               FontFamily="Consolas" FontSize="13" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Category}" Foreground="#526579" Margin="10,0,0,0"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding Status}" FontWeight="SemiBold"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                    <Border Grid.Row="2" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}"
+                            BorderThickness="1" CornerRadius="8">
+                        <ListBox ItemsSource="{Binding Tools}" BorderThickness="0" Background="Transparent"
+                                 Foreground="{DynamicResource TextPrimary}" Padding="8"
+                                 HorizontalContentAlignment="Stretch">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="6,5">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="98"/>
+                                            <ColumnDefinition Width="48"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding Name}" ToolTip="{Binding Name}"
+                                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Margin="0,0,8,0"
+                                                   FontFamily="Consolas" FontSize="13" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Category}"
+                                                   Foreground="{DynamicResource TextSecondary}" FontSize="12"
+                                                   Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding Status}" FontWeight="SemiBold"
+                                                   FontSize="12" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
                 </Grid>
             </TabItem>
-            <TabItem Header="运行设置">
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⚙" FontSize="17" Width="28"/>
+                        <TextBlock Text="运行设置" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </TabItem.Header>
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="18">
-                        <TextBlock Text="运行配置" FontSize="19" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding TargetDetails}" Margin="0,10,0,8"/>
-                        <StackPanel IsEnabled="{Binding CanOperate}">
-                            <TextBlock Text="工具模式" FontWeight="SemiBold" Margin="0,10,0,6"/>
-                            <ComboBox x:Name="ToolMode" Width="305" HorizontalAlignment="Left"
-                                      SelectedValuePath="Tag">
-                                <ComboBoxItem Tag="files" Content="文件模式 · 14 项工具"/>
-                                <ComboBoxItem Tag="terminal" Content="完整终端模式 · 21 项工具"/>
-                            </ComboBox>
-                            <TextBlock Text="终端使用当前 Windows 用户权限，不受文件授权根限制。"
-                                       Foreground="#526579" Margin="0,6"/>
-                            <TextBlock Text="文件访问权限" FontWeight="SemiBold" Margin="0,12,0,6"/>
-                            <ComboBox x:Name="AccessMode" Width="305" HorizontalAlignment="Left"
-                                      SelectedValuePath="Tag">
-                                <ComboBoxItem Tag="restricted" Content="Restricted · 受限访问"/>
-                                <ComboBoxItem Tag="full" Content="Full · 完整文件访问"
-                                              IsEnabled="{Binding FullAvailable}"/>
-                            </ComboBox>
-                            <TextBlock Text="{Binding FullNotice}" Foreground="#526579" Margin="0,6"/>
-                            <TextBlock Text="授权根目录（Full 下保留）"
-                                       FontWeight="SemiBold" Margin="0,12,0,6"/>
-                            <DockPanel>
-                                <Button DockPanel.Dock="Right" Content="浏览" Click="Browse_Click"/>
-                                <TextBox x:Name="RootPath" Padding="7"/>
-                            </DockPanel>
-                            <TextBlock Text="权限或根目录修改须先停止实例，下次启动生效。"
-                                       Foreground="#526579" Margin="0,8"/>
-                            <WrapPanel Margin="0,15,0,0">
-                                <Button Content="读取当前配置" Click="Load_Click"/>
-                                <Button Content="保存配置" Click="Save_Click"/>
-                                <Button Content="保存并启动" Click="SaveStart_Click"/>
-                            </WrapPanel>
-                        </StackPanel>
+                    <StackPanel Margin="20,18,20,8">
+                        <TextBlock Text="运行设置" Style="{StaticResource PageTitle}" Margin="0,0,0,14"/>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel IsEnabled="{Binding CanOperate}">
+                                <TextBlock Text="工具模式" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                <ComboBox x:Name="ToolMode" Width="305" HorizontalAlignment="Left"
+                                          SelectedValuePath="Tag">
+                                    <ComboBoxItem Tag="files" Content="文件模式 · 14 项工具"/>
+                                    <ComboBoxItem Tag="terminal" Content="完整终端模式 · 21 项工具"/>
+                                </ComboBox>
+                                <TextBlock Text="完整终端模式使用 Windows 当前用户权限，不受文件授权根限制。"
+                                           Style="{StaticResource Hint}" Margin="0,7,0,0"/>
+                                <TextBlock Text="文件访问权限" Style="{StaticResource SectionTitle}" Margin="0,18,0,8"/>
+                                <ComboBox x:Name="AccessMode" Width="305" HorizontalAlignment="Left"
+                                          SelectedValuePath="Tag">
+                                    <ComboBoxItem Tag="restricted" Content="Restricted · 受限访问"/>
+                                    <ComboBoxItem Tag="full" Content="Full · 完整文件访问"
+                                                  IsEnabled="{Binding FullAvailable}"/>
+                                </ComboBox>
+                                <TextBlock Text="{Binding FullNotice}" Style="{StaticResource Hint}" Margin="0,7,0,0"/>
+                                <TextBlock Text="授权根目录" Style="{StaticResource SectionTitle}" Margin="0,18,0,8"/>
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="浏览" Click="Browse_Click" Margin="8,0,0,0"/>
+                                    <TextBox x:Name="RootPath"/>
+                                </DockPanel>
+                                <TextBlock Text="修改权限或目录前需要停止服务；保存后按实际状态确认生效。"
+                                           Style="{StaticResource Hint}" Margin="0,7,0,0"/>
+                                <WrapPanel Margin="0,17,0,0">
+                                    <Button Content="读取当前配置" Click="Load_Click"/>
+                                    <Button Content="保存配置" Click="Save_Click"/>
+                                    <Button Content="保存并启动" Click="SaveStart_Click"
+                                            Style="{StaticResource PrimaryButton}"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <ToggleButton x:Name="SettingsDetailsToggle" Style="{StaticResource DetailToggle}"
+                                              Content="目标配置与回滚信息 ▼" Checked="SettingsDetails_Changed"
+                                              Unchecked="SettingsDetails_Changed"/>
+                                <StackPanel x:Name="SettingsDetailsPanel" Visibility="Collapsed" Margin="0,7,0,0">
+                                    <TextBlock Text="{Binding TargetDetails}" FontSize="12"
+                                               Foreground="{DynamicResource TextSecondary}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

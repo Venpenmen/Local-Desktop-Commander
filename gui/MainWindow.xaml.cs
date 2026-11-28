@@ -23,8 +23,11 @@ public partial class MainWindow : Window
 
     public MainWindow()
     {
+        ThemeManager.Initialize();
         InitializeComponent();
         DataContext = vm;
+        ThemeSelector.SelectedValuePath = "Tag";
+        ThemeSelector.SelectedValue = ThemeManager.Choice.ToString();
         var args = Environment.GetCommandLineArgs();
         var rootArg = Array.IndexOf(args, "--root");
         DirectoryInfo? dir;
@@ -53,6 +56,54 @@ public partial class MainWindow : Window
         };
         timer.Tick += async (_, _) => await Refresh(false);
         Closed += (_, _) => { closing = true; timer.Stop(); };
+    }
+
+    private void ThemeSelector_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (ThemeSelector?.SelectedItem is System.Windows.Controls.ComboBoxItem item &&
+            Enum.TryParse<ThemeChoice>(item.Tag?.ToString(), out var choice))
+            ThemeManager.SetChoice(choice);
+    }
+    private static void ToggleDetails(System.Windows.Controls.Primitives.ToggleButton toggle,
+        System.Windows.FrameworkElement panel)
+    {
+        var expanding = toggle.IsChecked == true;
+        panel.Visibility = expanding ? Visibility.Visible : Visibility.Collapsed;
+        if (expanding && System.Windows.SystemParameters.ClientAreaAnimation)
+        {
+            panel.BeginAnimation(OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(
+                0, 1, TimeSpan.FromMilliseconds(130)));
+        }
+        else
+        {
+            panel.BeginAnimation(OpacityProperty, null);
+            panel.Opacity = 1;
+        }
+        toggle.Content = expanding
+            ? toggle.Name switch
+            {
+                "OverviewDetailsToggle" => "收起运行详情 ▲",
+                "ConnectionDetailsToggle" => "收起高级诊断 ▲",
+                _ => "收起配置详情 ▲"
+            }
+            : toggle.Name switch
+            {
+                "OverviewDetailsToggle" => "详细运行信息 ▼",
+                "ConnectionDetailsToggle" => "高级诊断 / 传输详情 ▼",
+                _ => "目标配置与回滚信息 ▼"
+            };
+    }
+    private void OverviewDetails_Changed(object sender, RoutedEventArgs e)
+    {
+        if (OverviewDetailsPanel is not null) ToggleDetails(OverviewDetailsToggle, OverviewDetailsPanel);
+    }
+    private void ConnectionDetails_Changed(object sender, RoutedEventArgs e)
+    {
+        if (ConnectionDetailsPanel is not null) ToggleDetails(ConnectionDetailsToggle, ConnectionDetailsPanel);
+    }
+    private void SettingsDetails_Changed(object sender, RoutedEventArgs e)
+    {
+        if (SettingsDetailsPanel is not null) ToggleDetails(SettingsDetailsToggle, SettingsDetailsPanel);
     }
 
     private async Task Read()
